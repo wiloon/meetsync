@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PROTOTYPE — meetsync: timezone-aware Busy Blocks (throwaway, not production)</title>
+<style>
+  :root { --accent:#2f6f4f; --accent-light:#eaf3ee; --bg:#faf9f6; --panel:#fff; --line:#e6e3da; --text:#26261f; --muted:#7a7a6e; }
+  * { box-sizing: border-box; user-select: none; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px 20px 90px; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .badge { display:inline-block; background:#fff3cd; color:#7a5c00; border:1px solid #e8d68a; border-radius:4px; padding:3px 9px; font-size:11px; font-weight:600; letter-spacing:.03em; margin-bottom:10px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  .intro code { background: #f0efe8; padding: 1px 5px; border-radius: 4px; }
+  .tz-bar { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 18px; font-size: 13px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tz-bar b { color: var(--accent); }
+  select { padding: 6px 8px; border-radius: 6px; border: 1px solid #cfcbbf; font-size: 13px; }
+  .columns { display: flex; gap: 20px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 300px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .col h2 { font-size: 14px; margin: 0 0 4px; }
+  .col .sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .col.readonly { background: #f6f5ef; }
+  table.grid { border-collapse: collapse; width: 100%; }
+  table.grid td.hour-label { font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; width: 54px; white-space: nowrap; }
+  table.grid td.cell { height: 15px; border: 1px solid #fff; cursor: pointer; background: #eaf6ee; }
+  table.grid td.cell.busy { background: #6b6a60; }
+  table.grid td.cell.readonly { cursor: default; }
+  .date-hint { font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">PROTOTYPE — throwaway, not production</div>
+  <h1>Timezone-aware Busy Blocks</h1>
+  <div class="intro">
+    <b>Question this demo answers:</b> auto-detect each Participant's timezone from their browser, show it plainly, let them
+    override it if it's wrong, and store/convert Busy Blocks as real UTC instants — not naive "hour 9-17" labels that quietly
+    assume everyone shares one clock. The right grid is <b>yours</b> to click, in your own timezone. The left grid is
+    read-only, showing the exact same underlying commitments converted into the Gathering's reference timezone (fixed here
+    as Shanghai, standing in for whatever the Organizer used when they created it) — watch how far a slot moves.
+  </div>
+
+  <div class="tz-bar">
+    Detected from your browser: <b id="detected-tz"></b> (<span id="detected-offset"></span>)
+    — showing as: <select id="tz-select" onchange="onTzChange()"></select>
+  </div>
+
+  <div class="columns">
+    <div class="col readonly">
+      <h2>Organizer's reference — Asia/Shanghai</h2>
+      <div class="sub">Read-only. Recomputed live from whatever you click on the right.</div>
+      <table class="grid" id="grid-reference"></table>
+    </div>
+    <div class="col">
+      <h2>Your view</h2>
+      <div class="sub">Click to toggle busy, in <span id="your-tz-label"></span>. <span class="date-hint" id="your-date-label"></span></div>
+      <table class="grid" id="grid-yours"></table>
+    </div>
+  </div>
+</div>
+
+<script>
+// =========================================================================
+// PURE MODULE — timezone conversion via Intl, no library. This is the shape
+// that would move into the real BusyBlock storage/read path.
+// =========================================================================
+
+function getOffsetMinutes(date, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" }).formatToParts(date);
+  const tzPart = parts.find((p) => p.type === "timeZoneName")?.value || "GMT+0";
+  const m = tzPart.match(/GMT([+-]\d+)(?::(\d+))?/);
+  if (!m) return 0;
+  const h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  return h * 60 + (h < 0 ? -min : min);
+}
+
+// Wall-clock (year, month0, day, hour) in `timeZone` -> UTC epoch millis.
+function localWallClockToUTC(year, month, day, hour, timeZone) {
+  const naiveUTC = Date.UTC(year, month, day, hour, 0, 0);
+  const offsetMin = getOffsetMinutes(new Date(naiveUTC), timeZone);
+  return naiveUTC - offsetMin * 60000;
+}
+
+// UTC epoch millis -> {year, month0, day, hour} wall-clock in `timeZone`.
+function utcToLocalParts(utcMillis, timeZone) {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23",
+  });
+  const parts = Object.fromEntries(dtf.formatToParts(new Date(utcMillis)).map((p) => [p.type, p.value]));
+  return { year: Number(parts.year), month: Number(parts.month) - 1, day: Number(parts.day), hour: Number(parts.hour) };
+}
+
+// =========================================================================
+// THROWAWAY PAGE SHELL
+// =========================================================================
+
+const REFERENCE_TZ = "Asia/Shanghai";
+const COMMON_ZONES = ["Asia/Shanghai", "Asia/Tokyo", "America/Los_Angeles", "America/New_York", "Europe/London", "Australia/Sydney", "Pacific/Auckland", "UTC"];
+
+// A fixed demo date, 7 days out, expressed as the Gathering's reference-timezone calendar day.
+const demoRef = utcToLocalParts(Date.now() + 7 * 86400000, REFERENCE_TZ);
+
+const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+let yourTz = detectedTz;
+
+// Busy state stored as a Set of UTC epoch-hour keys (ms / 3600000) -- the canonical representation.
+const busyUtcHours = new Set();
+
+function utcKeyFor(y, m, d, h, tz) { return Math.floor(localWallClockToUTC(y, m, d, h, tz) / 3600000); }
+
+function fmtOffset(tz) {
+  const min = getOffsetMinutes(new Date(), tz);
+  const sign = min >= 0 ? "+" : "-";
+  const abs = Math.abs(min);
+  return `UTC${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
+}
+
+function populateTzSelect() {
+  const sel = document.getElementById("tz-select");
+  sel.innerHTML = "";
+  const zones = COMMON_ZONES.includes(detectedTz) ? COMMON_ZONES : [detectedTz, ...COMMON_ZONES];
+  zones.forEach((z) => {
+    const o = document.createElement("option");
+    o.value = z;
+    o.textContent = z === detectedTz ? `${z} (detected)` : z;
+    sel.appendChild(o);
+  });
+  sel.value = yourTz;
+}
+
+function onTzChange() {
+  yourTz = document.getElementById("tz-select").value;
+  render();
+}
+
+// "Your" calendar day is whatever calendar day the demo date falls on on YOUR side, derived from
+// the same underlying instant as the reference day's midnight -- i.e. we just reuse demoRef's
+// instant and re-render it in your zone, same principle as any other instant in this demo.
+function yourDemoDayParts() {
+  const refMidnightUtc = localWallClockToUTC(demoRef.year, demoRef.month, demoRef.day, 0, REFERENCE_TZ);
+  return utcToLocalParts(refMidnightUtc, yourTz);
+}
+
+function renderGrid(tableId, tz, dayParts, { readOnly }) {
+  const table = document.getElementById(tableId);
+  table.innerHTML = "";
+  for (let h = 0; h < 24; h++) {
+    const tr = document.createElement("tr");
+    const label = document.createElement("td");
+    label.className = "hour-label";
+    label.textContent = String(h).padStart(2, "0") + ":00";
+    tr.appendChild(label);
+
+    const td = document.createElement("td");
+    const key = utcKeyFor(dayParts.year, dayParts.month, dayParts.day, h, tz);
+    const busy = busyUtcHours.has(key);
+    td.className = "cell" + (busy ? " busy" : "") + (readOnly ? " readonly" : "");
+    if (!readOnly) {
+      td.onclick = () => { if (busyUtcHours.has(key)) busyUtcHours.delete(key); else busyUtcHours.add(key); render(); };
+    }
+    tr.appendChild(td);
+    table.appendChild(tr);
+  }
+}
+
+function render() {
+  document.getElementById("detected-tz").textContent = detectedTz;
+  document.getElementById("detected-offset").textContent = fmtOffset(detectedTz);
+  document.getElementById("your-tz-label").innerHTML = `<b>${yourTz}</b> (${fmtOffset(yourTz)})`;
+
+  const yourDay = yourDemoDayParts();
+  document.getElementById("your-date-label").textContent =
+    `Showing ${yourDay.year}-${String(yourDay.month+1).padStart(2,"0")}-${String(yourDay.day).padStart(2,"0")} in your zone.`;
+
+  renderGrid("grid-yours", yourTz, yourDay, { readOnly: false });
+  renderGrid("grid-reference", REFERENCE_TZ, demoRef, { readOnly: true });
+}
+
+populateTzSelect();
+render();
+</script>
+</body>
+</html>
