@@ -24,14 +24,16 @@
   .summary b { display: block; margin-bottom: 4px; }
   .summary .row { margin: 2px 0; }
   .grid-area { flex: 1; padding: 36px 24px; overflow-y: auto; }
-  table.grid { border-collapse: collapse; width: 100%; max-width: 520px; }
-  table.grid th { font-size: 11px; color: var(--muted); font-weight: 600; padding-bottom: 6px; text-align: center; position: sticky; top: 0; background: var(--bg); }
-  table.grid td.hour-label { font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; width: 46px; white-space: nowrap; }
-  table.grid td.cell { width: 33%; height: 17px; border: 1px solid #fff; cursor: pointer; background: var(--free); }
+  table.grid { border-collapse: collapse; width: 100%; max-width: 560px; }
+  table.grid th { font-size: 12px; color: var(--muted); font-weight: 600; padding-bottom: 8px; text-align: center; position: sticky; top: 0; background: var(--bg); }
+  table.grid td.slot-label { font-size: 12px; color: var(--muted); text-align: right; padding-right: 10px; width: 54px; white-space: nowrap; }
+  table.grid tr.on-hour td.slot-label { color: var(--text); font-weight: 600; }
+  table.grid td.cell { width: 33%; height: 26px; border: 1px solid #fff; cursor: pointer; background: var(--free); }
   table.grid td.cell.busy { background: var(--busy-light); cursor: default; }
   table.grid td.cell.topic-busy { background: var(--topic-busy-light); }
-  tr.band-row td { padding: 8px 0; border-top: 2px solid #c9c5b8; border-bottom: 2px solid #c9c5b8; }
-  tr.band-row .band-label { font-size: 12px; color: var(--muted); cursor: pointer; padding-left: 8px; }
+  table.grid tr.on-hour td.cell { border-top: 1px solid #d8d4c8; }
+  tr.band-row td { padding: 10px 0; border-top: 2px solid #c9c5b8; border-bottom: 2px solid #c9c5b8; }
+  tr.band-row .band-label { font-size: 13px; color: var(--muted); cursor: pointer; padding-left: 8px; }
   tr.band-row .band-label:hover { color: var(--accent); }
   tr.band-row .band-label .chevron { display: inline-block; margin-right: 4px; }
   tr.collapse-control td { padding: 4px 0 4px 8px; }
@@ -46,7 +48,8 @@
     <h1>Set your Busy Blocks</h1>
     <p class="intro">"General availability" is the Gathering-wide Busy Block (ADR-0003) — set once, applies to every topic.
     Each topic below layers a Topic Busy Block on top: hours already busy generally are locked, but you can mark extra
-    hours busy just for that one topic. Click a cell to toggle it, or click-and-drag across several to paint a range.</p>
+    time busy just for that one topic. Click a cell to toggle it, or click-and-drag across several to paint a range.
+    30-minute granularity — matches Rallly's own minimum poll duration, and the wider layout has room for it.</p>
 
     <div class="tabs-vertical" id="tabs"></div>
 
@@ -68,24 +71,25 @@
 <script>
 const DAYS = ["Fri 9/25", "Sat 9/26", "Sun 9/27"];
 const TOPICS = ["Dinner", "Coffee", "Online game", "Video call"];
-const HOURS = Array.from({length:24}, (_,i)=>i);
+const SLOT_MINUTES = 30;
+const SLOTS_PER_DAY = (24 * 60) / SLOT_MINUTES; // 48
+const SLOTS = Array.from({length: SLOTS_PER_DAY}, (_, i) => i);
 
-// The two bands that match story 16's default-busy pattern exactly, so the UI's
-// "collapse by default" rule and the domain's "assumed busy by default" rule are
-// the same rule, not two thresholds that can drift apart.
-const MORNING_BAND = [0, 9];   // collapsed by default
-const EVENING_BAND = [20, 24]; // collapsed by default
+// The two bands that match story 16's default-busy pattern exactly (in slots, not
+// hours, now that the grid is half-hour granularity) -- collapsed by default, so
+// the UI's "collapse" rule and the domain's "assumed busy" rule stay one rule.
+const MORNING_BAND = [0, 18];          // 00:00-09:00
+const EVENING_BAND = [40, SLOTS_PER_DAY]; // 20:00-24:00
 
-// state[tabKey][day][hour] = true means busy
-// tabKey "general" or a topic name
+// state[tabKey][day][slot] = true means busy
 let state = { general: makeDefaultGeneral() };
 TOPICS.forEach(t => state[t] = makeEmpty());
 
 function makeEmpty() {
-  return DAYS.map(() => HOURS.map(() => false));
+  return DAYS.map(() => SLOTS.map(() => false));
 }
 function makeDefaultGeneral() {
-  return DAYS.map(() => HOURS.map(h => h < 9 || h >= 20));
+  return DAYS.map(() => SLOTS.map(s => s < MORNING_BAND[1] || s >= EVENING_BAND[0]));
 }
 
 let activeTab = "general";
@@ -94,7 +98,12 @@ let paintValue = null;
 let morningExpanded = false;
 let eveningExpanded = false;
 
-function fmtHour(h) { return String(h).padStart(2,"0") + ":00"; }
+function fmtSlot(slot) {
+  if (slot >= SLOTS_PER_DAY) return "24:00";
+  const h = Math.floor(slot / 2);
+  const m = slot % 2 === 0 ? "00" : "30";
+  return `${String(h).padStart(2, "0")}:${m}`;
+}
 
 function renderTabs() {
   const el = document.getElementById("tabs");
@@ -108,32 +117,30 @@ function renderTabs() {
   });
 }
 
-function isLocked(day, hour) {
-  return activeTab !== "general" && state.general[day][hour];
+function isLocked(day, slot) {
+  return activeTab !== "general" && state.general[day][slot];
 }
-function isBusy(day, hour) {
-  if (activeTab === "general") return state.general[day][hour];
-  return state.general[day][hour] || state[activeTab][day][hour];
+function isBusy(day, slot) {
+  if (activeTab === "general") return state.general[day][slot];
+  return state.general[day][slot] || state[activeTab][day][slot];
 }
-function cellClass(day, hour) {
-  if (activeTab === "general") return state.general[day][hour] ? "busy" : "";
-  if (state.general[day][hour]) return "busy";
-  if (state[activeTab][day][hour]) return "topic-busy";
+function cellClass(day, slot) {
+  if (activeTab === "general") return state.general[day][slot] ? "busy" : "";
+  if (state.general[day][slot]) return "busy";
+  if (state[activeTab][day][slot]) return "topic-busy";
   return "";
 }
 
-function toggle(day, hour, forceValue) {
-  if (isLocked(day, hour)) return;
+function toggle(day, slot, forceValue) {
+  if (isLocked(day, slot)) return;
   const target = activeTab === "general" ? state.general : state[activeTab];
-  target[day][hour] = forceValue !== undefined ? forceValue : !target[day][hour];
+  target[day][slot] = forceValue !== undefined ? forceValue : !target[day][slot];
 }
 
-// Whether every hour in [start, end) is busy across every day, for the collapsed
-// band's summary label -- collapsed doesn't mean hidden data, just hidden rows.
 function bandAllBusy(start, end) {
   for (let day = 0; day < DAYS.length; day++) {
-    for (let hour = start; hour < end; hour++) {
-      if (!isBusy(day, hour)) return false;
+    for (let slot = start; slot < end; slot++) {
+      if (!isBusy(day, slot)) return false;
     }
   }
   return true;
@@ -143,8 +150,8 @@ function bandRow(start, end, expanded, onToggle) {
   const tr = document.createElement("tr");
   tr.className = "band-row";
   const label = bandAllBusy(start, end)
-    ? `${fmtHour(start)}–${fmtHour(end === 24 ? 24 : end)} · busy (matches default)`
-    : `${fmtHour(start)}–${fmtHour(end === 24 ? 24 : end)} · customized — some hours differ from default`;
+    ? `${fmtSlot(start)}–${fmtSlot(end)} · busy (matches default)`
+    : `${fmtSlot(start)}–${fmtSlot(end)} · customized — some time differs from default`;
   const td = document.createElement("td");
   td.colSpan = DAYS.length + 1;
   td.innerHTML = `<span class="band-label"><span class="chevron">${expanded ? "▾" : "▸"}</span>${label}</span>`;
@@ -153,28 +160,29 @@ function bandRow(start, end, expanded, onToggle) {
   return tr;
 }
 
-function hourRow(hour) {
+function slotRow(slot) {
   const tr = document.createElement("tr");
+  if (slot % 2 === 0) tr.className = "on-hour"; // slightly emphasize the top of each hour
   const label = document.createElement("td");
-  label.className = "hour-label";
-  label.textContent = fmtHour(hour);
+  label.className = "slot-label";
+  label.textContent = fmtSlot(slot);
   tr.appendChild(label);
   DAYS.forEach((_, day) => {
     const td = document.createElement("td");
-    td.className = "cell " + cellClass(day, hour);
+    td.className = "cell " + cellClass(day, slot);
     td.onmousedown = (e) => {
       e.preventDefault();
-      if (isLocked(day, hour)) return;
-      const current = activeTab === "general" ? state.general[day][hour] : state[activeTab][day][hour];
+      if (isLocked(day, slot)) return;
+      const current = activeTab === "general" ? state.general[day][slot] : state[activeTab][day][slot];
       paintValue = !current;
       painting = true;
-      toggle(day, hour, paintValue);
+      toggle(day, slot, paintValue);
       renderGrid();
       renderSummary();
     };
     td.onmouseenter = () => {
-      if (painting && !isLocked(day, hour)) {
-        toggle(day, hour, paintValue);
+      if (painting && !isLocked(day, slot)) {
+        toggle(day, slot, paintValue);
         renderGrid();
         renderSummary();
       }
@@ -202,20 +210,17 @@ function renderGrid() {
   thead.innerHTML = `<th></th>` + DAYS.map(d => `<th>${d}</th>`).join("");
   table.appendChild(thead);
 
-  // Morning band (00:00-09:00)
   table.appendChild(bandRow(MORNING_BAND[0], MORNING_BAND[1], morningExpanded, () => { morningExpanded = !morningExpanded; renderGrid(); }));
   if (morningExpanded) {
-    for (let h = MORNING_BAND[0]; h < MORNING_BAND[1]; h++) table.appendChild(hourRow(h));
+    for (let s = MORNING_BAND[0]; s < MORNING_BAND[1]; s++) table.appendChild(slotRow(s));
     table.appendChild(collapseControlRow("Collapse this range again", () => { morningExpanded = false; renderGrid(); }));
   }
 
-  // Midday, always visible (09:00-20:00) -- the range worth looking at by default
-  for (let h = MORNING_BAND[1]; h < EVENING_BAND[0]; h++) table.appendChild(hourRow(h));
+  for (let s = MORNING_BAND[1]; s < EVENING_BAND[0]; s++) table.appendChild(slotRow(s));
 
-  // Evening band (20:00-24:00)
   table.appendChild(bandRow(EVENING_BAND[0], EVENING_BAND[1], eveningExpanded, () => { eveningExpanded = !eveningExpanded; renderGrid(); }));
   if (eveningExpanded) {
-    for (let h = EVENING_BAND[0]; h < EVENING_BAND[1]; h++) table.appendChild(hourRow(h));
+    for (let s = EVENING_BAND[0]; s < EVENING_BAND[1]; s++) table.appendChild(slotRow(s));
     table.appendChild(collapseControlRow("Collapse this range again", () => { eveningExpanded = false; renderGrid(); }));
   }
 }
@@ -225,10 +230,10 @@ document.addEventListener("mouseup", () => { painting = false; });
 function rangesFor(dayArr) {
   const ranges = [];
   let start = null;
-  for (let h = 0; h <= 24; h++) {
-    const busy = h < 24 && dayArr[h];
-    if (busy && start === null) start = h;
-    if (!busy && start !== null) { ranges.push([start, h]); start = null; }
+  for (let s = 0; s <= SLOTS_PER_DAY; s++) {
+    const busy = s < SLOTS_PER_DAY && dayArr[s];
+    if (busy && start === null) start = s;
+    if (!busy && start !== null) { ranges.push([start, s]); start = null; }
   }
   return ranges;
 }
@@ -242,9 +247,9 @@ function renderSummary() {
   const el = document.getElementById("summary");
   let html = `<b>${activeTab === "general" ? "General availability" : activeTab + " — effective busy time"}</b>`;
   DAYS.forEach((label, day) => {
-    const arr = activeTab === "general" ? state.general[day] : state.general[day].map((g, h) => g || state[activeTab][day][h]);
+    const arr = activeTab === "general" ? state.general[day] : state.general[day].map((g, s) => g || state[activeTab][day][s]);
     const ranges = rangesFor(arr);
-    const text = ranges.length ? ranges.map(([s,e]) => `${fmtHour(s)}–${fmtHour(e===24?24:e)}`).join(", ") : "none — fully free";
+    const text = ranges.length ? ranges.map(([s,e]) => `${fmtSlot(s)}–${fmtSlot(e)}`).join(", ") : "none — fully free";
     html += `<div class="row">${label}: busy ${text}</div>`;
   });
   el.innerHTML = html;
