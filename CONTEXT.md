@@ -41,8 +41,8 @@ A Participant's available time, derived by subtracting their Busy Blocks from th
 _Avoid_: availability (ambiguous about which direction it's phrased in)
 
 **Topic Preference**:
-A Participant's stance on one Topic: a priority rank relative to their other Topic Preferences in the same Gathering, plus any Topic Busy Blocks that further narrow their Free Time for that Topic specifically. Without any Topic Busy Blocks, a Topic Preference's effective time is the Participant's full Free Time.
-_Avoid_: vote, interest, rating
+A Participant's stance on one Topic: that they're interested, plus any Topic Busy Blocks that further narrow their Free Time for that Topic specifically. Without any Topic Busy Blocks, a Topic Preference's effective time is the Participant's full Free Time. Release 1 treats interest as plain yes/no; a priority rank among a Participant's own Topic Preferences arrives in Release 2, alongside `MatchingEngine` ([ADR-0013](docs/adr/0013-release-1-raw-tally-no-matching-engine.md)).
+_Avoid_: vote (a Topic Preference is the underlying record; a Release 1 tally's vote count is just how many exist for a Topic), rating
 
 **Topic Busy Block**:
 A Busy Block scoped to one Topic rather than the whole Gathering: time the Participant can't give to that Topic specifically, even though they're otherwise free then. Narrows only that Topic's effective time, leaving the Participant's Free Time and other Topics untouched.
@@ -92,7 +92,7 @@ The default assumption for a Topic with no Sponsor: attendees share the cost equ
 _Avoid_: AA (fine as spoken shorthand, but not the canonical term in docs or code)
 
 **Plan**:
-One finalized outcome the matching step proposes: a Topic, a time window, and an attendee set. A single Gathering can resolve into more than one Plan — the group is not required to converge on one answer.
+One finalized outcome the matching step proposes: a Topic, a time window, and an attendee set. A single Gathering can resolve into more than one Plan — the group is not required to converge on one answer. Arrives with `MatchingEngine` in Release 2 ([ADR-0013](docs/adr/0013-release-1-raw-tally-no-matching-engine.md)); Release 1 has no Plan, only a raw per-Topic, per-slot tally that the group reads themselves.
 _Avoid_: match, result, proposal
 
 **Estimated Cost**:
