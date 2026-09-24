@@ -15,3 +15,7 @@ The group this is built for is a handful of people who already trust each other 
 ## Update (Phase 2)
 
 Phase 2 gives the Organizer a real Organizer Account, scoped to billing (see [0007](0007-phased-organizer-auth-and-ai-billing.md)). This claim still holds for Participants: joining stays link + Identity Claim, optionally gated by a Gathering Passcode, which is a shared secret rather than a personal credential. A possible future phase adding real Participant accounts (e.g. third-party login) would need to revisit this ADR properly, not just add to it.
+
+## Update (Phase 1 — releasing a stuck name)
+
+"No power beyond authorship" gets one narrow, deliberate exception: an Organizer can manually release another Participant's claimed name (issue #1, stories 39-40), on top of the automatic 24-hour inactivity release that applies regardless of who's Organizer. This exists only to unblock a name that's stuck because its holder disappeared without clicking Leave — it is not a general moderation capability (no kicking, no renaming, no editing someone else's Busy Blocks).
