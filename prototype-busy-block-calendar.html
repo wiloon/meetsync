@@ -4,64 +4,77 @@
 <meta charset="UTF-8">
 <title>PROTOTYPE — meetsync: Busy Block calendar, general + per-topic (throwaway, not production)</title>
 <style>
-  :root { --accent:#2f6f4f; --free:#eaf6ee; --free-line:#bfe0cb; --busy:#6b6a60; --busy-light:#d8d6cc; --topic-busy:#e0a340; --topic-busy-light:#f6dfb3; --bg:#faf9f6; --text:#26261f; --muted:#7a7a6e; }
+  :root { --accent:#2f6f4f; --free:#eaf6ee; --free-line:#bfe0cb; --busy:#6b6a60; --busy-light:#d8d6cc; --topic-busy:#e0a340; --topic-busy-light:#f6dfb3; --bg:#faf9f6; --text:#26261f; --muted:#7a7a6e; --line:#e6e3da; }
   * { box-sizing: border-box; user-select: none; }
-  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px 20px 90px; }
-  .badge { display:inline-block; background:#fff3cd; color:#7a5c00; border:1px solid #e8d68a; border-radius:4px; padding:3px 9px; font-size:11px; font-weight:600; letter-spacing:.03em; margin-bottom:10px; }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .intro { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
-  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-  .tab { padding: 7px 14px; border-radius: 8px; border: 1px solid #ddd8ca; background: #fff; cursor: pointer; font-size: 13px; }
+  html, body { height: 100%; margin: 0; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); }
+  .badge { position: fixed; top: 8px; left: 8px; z-index: 10; background:#fff3cd; color:#7a5c00; border:1px solid #e8d68a; border-radius:4px; padding:3px 9px; font-size:11px; font-weight:600; letter-spacing:.03em; }
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 300px; flex-shrink: 0; padding: 36px 20px 20px; border-right: 1px solid var(--line); background: #fff; overflow-y: auto; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  .intro { color: var(--muted); font-size: 12px; margin: 0 0 18px; line-height: 1.5; }
+  .tabs-vertical { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; }
+  .tab { padding: 9px 12px; border-radius: 8px; border: 1px solid #ddd8ca; background: #fff; cursor: pointer; font-size: 13px; text-align: left; }
   .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
-  .legend span { display: inline-flex; align-items: center; gap: 5px; }
-  .swatch { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
-  .grid-panel { background: #fff; border: 1px solid #e6e3da; border-radius: 12px; padding: 16px; }
-  table.grid { border-collapse: collapse; width: 100%; }
-  table.grid th { font-size: 11px; color: var(--muted); font-weight: 600; padding-bottom: 6px; text-align: center; }
-  table.grid td.hour-label { font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; width: 46px; white-space: nowrap; }
-  table.grid td.cell { width: 33%; height: 15px; border: 1px solid #fff; cursor: pointer; background: var(--free); }
-  table.grid td.cell.busy { background: var(--busy-light); cursor: default; }
-  table.grid td.cell.topic-busy { background: var(--topic-busy-light); }
-  table.grid tr.hour-9, table.grid tr.hour-20 td { border-top: 2px solid #c9c5b8; }
-  .note { font-size: 12px; color: var(--muted); margin-top: 10px; }
-  .summary { margin-top: 16px; background: #f6f5ef; border-radius: 10px; padding: 12px 16px; font-size: 13px; }
+  .legend { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 13px; height: 13px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  .hint-inline { font-size: 12px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .summary { background: #f6f5ef; border-radius: 10px; padding: 12px 14px; font-size: 12px; }
   .summary b { display: block; margin-bottom: 4px; }
   .summary .row { margin: 2px 0; }
-  .hint-inline { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .grid-area { flex: 1; padding: 36px 24px; overflow-y: auto; }
+  table.grid { border-collapse: collapse; width: 100%; max-width: 520px; }
+  table.grid th { font-size: 11px; color: var(--muted); font-weight: 600; padding-bottom: 6px; text-align: center; position: sticky; top: 0; background: var(--bg); }
+  table.grid td.hour-label { font-size: 11px; color: var(--muted); text-align: right; padding-right: 8px; width: 46px; white-space: nowrap; }
+  table.grid td.cell { width: 33%; height: 17px; border: 1px solid #fff; cursor: pointer; background: var(--free); }
+  table.grid td.cell.busy { background: var(--busy-light); cursor: default; }
+  table.grid td.cell.topic-busy { background: var(--topic-busy-light); }
+  tr.band-row td { padding: 8px 0; border-top: 2px solid #c9c5b8; border-bottom: 2px solid #c9c5b8; }
+  tr.band-row .band-label { font-size: 12px; color: var(--muted); cursor: pointer; padding-left: 8px; }
+  tr.band-row .band-label:hover { color: var(--accent); }
+  tr.band-row .band-label .chevron { display: inline-block; margin-right: 4px; }
+  tr.collapse-control td { padding: 4px 0 4px 8px; }
+  tr.collapse-control .collapse-label { font-size: 11px; color: var(--muted); cursor: pointer; }
+  tr.collapse-control .collapse-label:hover { color: var(--accent); }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="badge">PROTOTYPE — throwaway, not production</div>
-  <h1>Set your Busy Blocks — hour granularity, click or drag to paint</h1>
-  <p class="intro">"General availability" is the Gathering-wide Busy Block (ADR-0003) — set once, applies to every topic. Each
-  topic tab layers a Topic Busy Block on top: hours already busy generally are locked (you can't free them up per-topic),
-  but you can mark extra hours busy just for that one topic. Default: 00:00–09:00 and 20:00–24:00 start as busy every day
-  (toggle them off if that's wrong for you).</p>
+<div class="badge">PROTOTYPE — throwaway, not production</div>
+<div class="layout">
+  <aside class="sidebar">
+    <h1>Set your Busy Blocks</h1>
+    <p class="intro">"General availability" is the Gathering-wide Busy Block (ADR-0003) — set once, applies to every topic.
+    Each topic below layers a Topic Busy Block on top: hours already busy generally are locked, but you can mark extra
+    hours busy just for that one topic. Click a cell to toggle it, or click-and-drag across several to paint a range.</p>
 
-  <div class="tabs" id="tabs"></div>
+    <div class="tabs-vertical" id="tabs"></div>
 
-  <div class="legend">
-    <span><span class="swatch" style="background:var(--free)"></span> Free</span>
-    <span><span class="swatch" style="background:var(--busy-light)"></span> Busy (general — locked on topic tabs)</span>
-    <span><span class="swatch" style="background:var(--topic-busy-light)"></span> Busy (this topic only)</span>
-  </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--free)"></span> Free</span>
+      <span><span class="swatch" style="background:var(--busy-light)"></span> Busy (general — locked on topic tabs)</span>
+      <span><span class="swatch" style="background:var(--topic-busy-light)"></span> Busy (this topic only)</span>
+    </div>
 
-  <p class="hint-inline" id="tab-hint"></p>
+    <p class="hint-inline" id="tab-hint"></p>
+    <div class="summary" id="summary"></div>
+  </aside>
 
-  <div class="grid-panel">
+  <main class="grid-area">
     <table class="grid" id="grid"></table>
-  </div>
-
-  <div class="summary" id="summary"></div>
+  </main>
 </div>
 
 <script>
 const DAYS = ["Fri 9/25", "Sat 9/26", "Sun 9/27"];
 const TOPICS = ["Dinner", "Coffee", "Online game", "Video call"];
 const HOURS = Array.from({length:24}, (_,i)=>i);
+
+// The two bands that match story 16's default-busy pattern exactly, so the UI's
+// "collapse by default" rule and the domain's "assumed busy by default" rule are
+// the same rule, not two thresholds that can drift apart.
+const MORNING_BAND = [0, 9];   // collapsed by default
+const EVENING_BAND = [20, 24]; // collapsed by default
 
 // state[tabKey][day][hour] = true means busy
 // tabKey "general" or a topic name
@@ -78,6 +91,8 @@ function makeDefaultGeneral() {
 let activeTab = "general";
 let painting = false;
 let paintValue = null;
+let morningExpanded = false;
+let eveningExpanded = false;
 
 function fmtHour(h) { return String(h).padStart(2,"0") + ":00"; }
 
@@ -113,6 +128,73 @@ function toggle(day, hour, forceValue) {
   target[day][hour] = forceValue !== undefined ? forceValue : !target[day][hour];
 }
 
+// Whether every hour in [start, end) is busy across every day, for the collapsed
+// band's summary label -- collapsed doesn't mean hidden data, just hidden rows.
+function bandAllBusy(start, end) {
+  for (let day = 0; day < DAYS.length; day++) {
+    for (let hour = start; hour < end; hour++) {
+      if (!isBusy(day, hour)) return false;
+    }
+  }
+  return true;
+}
+
+function bandRow(start, end, expanded, onToggle) {
+  const tr = document.createElement("tr");
+  tr.className = "band-row";
+  const label = bandAllBusy(start, end)
+    ? `${fmtHour(start)}–${fmtHour(end === 24 ? 24 : end)} · busy (matches default)`
+    : `${fmtHour(start)}–${fmtHour(end === 24 ? 24 : end)} · customized — some hours differ from default`;
+  const td = document.createElement("td");
+  td.colSpan = DAYS.length + 1;
+  td.innerHTML = `<span class="band-label"><span class="chevron">${expanded ? "▾" : "▸"}</span>${label}</span>`;
+  td.querySelector(".band-label").onclick = onToggle;
+  tr.appendChild(td);
+  return tr;
+}
+
+function hourRow(hour) {
+  const tr = document.createElement("tr");
+  const label = document.createElement("td");
+  label.className = "hour-label";
+  label.textContent = fmtHour(hour);
+  tr.appendChild(label);
+  DAYS.forEach((_, day) => {
+    const td = document.createElement("td");
+    td.className = "cell " + cellClass(day, hour);
+    td.onmousedown = (e) => {
+      e.preventDefault();
+      if (isLocked(day, hour)) return;
+      const current = activeTab === "general" ? state.general[day][hour] : state[activeTab][day][hour];
+      paintValue = !current;
+      painting = true;
+      toggle(day, hour, paintValue);
+      renderGrid();
+      renderSummary();
+    };
+    td.onmouseenter = () => {
+      if (painting && !isLocked(day, hour)) {
+        toggle(day, hour, paintValue);
+        renderGrid();
+        renderSummary();
+      }
+    };
+    tr.appendChild(td);
+  });
+  return tr;
+}
+
+function collapseControlRow(label, onClick) {
+  const tr = document.createElement("tr");
+  tr.className = "collapse-control";
+  const td = document.createElement("td");
+  td.colSpan = DAYS.length + 1;
+  td.innerHTML = `<span class="collapse-label">▴ ${label}</span>`;
+  td.querySelector(".collapse-label").onclick = onClick;
+  tr.appendChild(td);
+  return tr;
+}
+
 function renderGrid() {
   const table = document.getElementById("grid");
   table.innerHTML = "";
@@ -120,39 +202,22 @@ function renderGrid() {
   thead.innerHTML = `<th></th>` + DAYS.map(d => `<th>${d}</th>`).join("");
   table.appendChild(thead);
 
-  HOURS.forEach(hour => {
-    const tr = document.createElement("tr");
-    tr.className = "hour-" + hour;
-    const label = document.createElement("td");
-    label.className = "hour-label";
-    label.textContent = fmtHour(hour);
-    tr.appendChild(label);
-    DAYS.forEach((_, day) => {
-      const td = document.createElement("td");
-      td.className = "cell " + cellClass(day, hour);
-      td.dataset.day = day;
-      td.dataset.hour = hour;
-      td.onmousedown = (e) => {
-        e.preventDefault();
-        if (isLocked(day, hour)) return;
-        const current = activeTab === "general" ? state.general[day][hour] : state[activeTab][day][hour];
-        paintValue = !current;
-        painting = true;
-        toggle(day, hour, paintValue);
-        renderGrid();
-        renderSummary();
-      };
-      td.onmouseenter = () => {
-        if (painting && !isLocked(day, hour)) {
-          toggle(day, hour, paintValue);
-          renderGrid();
-          renderSummary();
-        }
-      };
-      tr.appendChild(td);
-    });
-    table.appendChild(tr);
-  });
+  // Morning band (00:00-09:00)
+  table.appendChild(bandRow(MORNING_BAND[0], MORNING_BAND[1], morningExpanded, () => { morningExpanded = !morningExpanded; renderGrid(); }));
+  if (morningExpanded) {
+    for (let h = MORNING_BAND[0]; h < MORNING_BAND[1]; h++) table.appendChild(hourRow(h));
+    table.appendChild(collapseControlRow("Collapse this range again", () => { morningExpanded = false; renderGrid(); }));
+  }
+
+  // Midday, always visible (09:00-20:00) -- the range worth looking at by default
+  for (let h = MORNING_BAND[1]; h < EVENING_BAND[0]; h++) table.appendChild(hourRow(h));
+
+  // Evening band (20:00-24:00)
+  table.appendChild(bandRow(EVENING_BAND[0], EVENING_BAND[1], eveningExpanded, () => { eveningExpanded = !eveningExpanded; renderGrid(); }));
+  if (eveningExpanded) {
+    for (let h = EVENING_BAND[0]; h < EVENING_BAND[1]; h++) table.appendChild(hourRow(h));
+    table.appendChild(collapseControlRow("Collapse this range again", () => { eveningExpanded = false; renderGrid(); }));
+  }
 }
 
 document.addEventListener("mouseup", () => { painting = false; });
@@ -169,12 +234,12 @@ function rangesFor(dayArr) {
 }
 
 function renderSummary() {
-  const el = document.getElementById("summary");
   const hint = document.getElementById("tab-hint");
   hint.textContent = activeTab === "general"
-    ? "This is your Gathering-wide Busy Block. Every topic inherits it."
+    ? "This is your Gathering-wide Busy Block. Every topic inherits it. The 00:00–09:00 and 20:00–24:00 rows start collapsed since they match the default — expand either one if you need to override it (e.g. a night shift, or a dinner running past 8pm)."
     : `Gray cells are locked here — they're busy generally, so they can't be freed up just for ${activeTab}. Click a free (light green) cell to mark it busy only for ${activeTab}.`;
 
+  const el = document.getElementById("summary");
   let html = `<b>${activeTab === "general" ? "General availability" : activeTab + " — effective busy time"}</b>`;
   DAYS.forEach((label, day) => {
     const arr = activeTab === "general" ? state.general[day] : state.general[day].map((g, h) => g || state[activeTab][day][h]);
