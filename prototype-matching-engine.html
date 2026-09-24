@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PROTOTYPE — meetsync MatchingEngine (throwaway, not production)</title>
+<style>
+  :root { --accent: #2f6f4f; --bg: #fafaf8; --panel: #ffffff; --line: #e3e0d8; --text: #26261f; --muted: #6b6a60; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 32px 24px 80px; line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .badge { display: inline-block; background: #fff3cd; color: #7a5c00; border: 1px solid #e8d68a; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; letter-spacing: .03em; margin-bottom: 12px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; }
+  .intro p { margin: 6px 0; }
+  .intro code { background: #f0efe8; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 10px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+  select, input[type=text] { padding: 6px 8px; border: 1px solid #cfcbbf; border-radius: 6px; font-size: 13px; background: #fff; }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 13px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  button.ghost { background: none; color: #a44; border: none; padding: 2px 6px; font-size: 12px; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  .pill { display: inline-block; background: #f0efe8; border-radius: 12px; padding: 2px 9px; font-size: 12px; margin: 1px 3px 1px 0; }
+  .plan-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  .plan-card.leading { border-color: var(--accent); background: #f3f9f5; }
+  .plan-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .plan-card .score { color: var(--muted); font-size: 12px; }
+  .no-plan { color: var(--muted); font-size: 13px; font-style: italic; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 13px; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scenario-desc { background: #f6f5ef; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+  .step-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-list button { align-self: flex-start; }
+  .step-done { color: var(--muted); font-size: 13px; padding: 4px 0; }
+  .step-done::before { content: "✓ "; color: var(--accent); }
+  .why { font-size: 12px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <span class="badge">PROTOTYPE — throwaway, not production</span>
+  <h1>meetsync MatchingEngine — does the scoring feel right?</h1>
+
+  <div class="intro">
+    <p><strong>Question this demo answers:</strong> for a Topic (dinner, an online game, …), the engine looks at everyone who's
+    interested, subtracts each person's Busy Blocks (both Gathering-wide and Topic-specific), and proposes the time window
+    with the most weighted support. Do the results this produces match what a real group would expect, given the numbers
+    picked in the spec: <code>30-minute slots</code>, <code>minimum 2 attendees</code>, <code>weight = 1 / priority rank</code>,
+    and <code>windows within 10% of the top score shown as ties</code>?</p>
+    <p>Play free-form below, or step through the four scenarios that were hardest to reason about on paper. Watch for
+    "wait, that's not what I expected" moments — that's the prototype doing its job.</p>
+  </div>
+
+  <section>
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="scenario-desc" id="scenario-desc"></div>
+    <div class="step-list" id="scenario-steps"></div>
+  </section>
+
+  <section>
+    <h2>Free play</h2>
+
+    <div class="row">
+      <div>
+        <label>New participant name</label>
+        <input type="text" id="new-participant-name" placeholder="e.g. Dana">
+      </div>
+      <button onclick="uiAddParticipant()">Add participant</button>
+
+      <div>
+        <label>New topic name</label>
+        <input type="text" id="new-topic-name" placeholder="e.g. Dinner">
+      </div>
+      <button onclick="uiAddTopic()">Add topic</button>
+
+      <button class="secondary" onclick="uiReset()">Reset everything</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Add Busy Block (Gathering-wide) — participant</label>
+        <select id="bb-participant"></select>
+      </div>
+      <div>
+        <label>Day</label>
+        <select id="bb-day"></select>
+      </div>
+      <div>
+        <label>From</label>
+        <select id="bb-start"></select>
+      </div>
+      <div>
+        <label>Until</label>
+        <select id="bb-end"></select>
+      </div>
+      <button onclick="uiAddBusyBlock()">I'm not free then</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Set Topic Preference — participant</label>
+        <select id="tp-participant"></select>
+      </div>
+      <div>
+        <label>topic</label>
+        <select id="tp-topic"></select>
+      </div>
+      <div>
+        <label>priority rank (1 = favorite)</label>
+        <select id="tp-rank">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+        </select>
+      </div>
+      <button onclick="uiAddTopicPreference()">I'm interested</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Add Topic Busy Block — participant</label>
+        <select id="tbb-participant"></select>
+      </div>
+      <div>
+        <label>for topic</label>
+        <select id="tbb-topic"></select>
+      </div>
+      <div>
+        <label>Day</label>
+        <select id="tbb-day"></select>
+      </div>
+      <div>
+        <label>From</label>
+        <select id="tbb-start"></select>
+      </div>
+      <div>
+        <label>Until</label>
+        <select id="tbb-end"></select>
+      </div>
+      <button onclick="uiAddTopicBusyBlock()">Not free for THIS topic then</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Current state</h2>
+    <table id="participants-table">
+      <thead><tr><th>Participant</th><th>Gathering-wide Busy Blocks</th><th>Topic Preferences</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Computed Plans</h2>
+    <div id="plans-output"></div>
+  </section>
+
+</div>
+
+<script>
+// =========================================================================
+// PURE MODULE — this is the part that lifts into the real MatchingEngine.
+// No DOM references below this line.
+// =========================================================================
+
+const GRANULARITY_MIN = 30;
+const SLOTS_PER_DAY = (24 * 60) / GRANULARITY_MIN; // 48
+const DAYS = 3;
+const TOTAL_SLOTS = DAYS * SLOTS_PER_DAY;
+const MIN_ATTENDEES = 2;
+const TIE_MARGIN = 0.10;
+const DAY_LABELS = ["Day 1 (Fri)", "Day 2 (Sat)", "Day 3 (Sun)"];
+
+function slotRange(interval) {
+  // interval: {day, start, end} in hours, same-day only (simplification for this prototype)
+  const base = interval.day * SLOTS_PER_DAY;
+  return [base + Math.round(interval.start * 2), base + Math.round(interval.end * 2)];
+}
+
+function busyArrayFor(participant, topicId) {
+  const busy = new Array(TOTAL_SLOTS).fill(false);
+  const mark = (iv) => {
+    const [s, e] = slotRange(iv);
+    for (let i = s; i < e && i < TOTAL_SLOTS; i++) busy[Math.max(i, 0)] = true;
+  };
+  participant.busyBlocks.forEach(mark);
+  const pref = participant.topicPrefs[topicId];
+  if (pref) pref.topicBusyBlocks.forEach(mark);
+  return busy;
+}
+
+// The core function: given topics + participants, return each topic's candidate Plan windows.
+function computeAllPlans(topics, participants) {
+  return topics.map((topic) => computeTopicPlans(topic, participants));
+}
+
+function computeTopicPlans(topic, participants) {
+  const interested = participants.filter((p) => p.topicPrefs[topic.id]);
+  if (interested.length === 0) {
+    return { topicId: topic.id, windows: [], reason: "Nobody has expressed interest in this topic yet." };
+  }
+
+  const freeMatrix = interested.map((p) => {
+    const busy = busyArrayFor(p, topic.id);
+    return busy.map((b) => !b);
+  });
+
+  // Signature per slot: bitmask of which interested participants are free at that slot.
+  const sig = new Array(TOTAL_SLOTS);
+  for (let s = 0; s < TOTAL_SLOTS; s++) {
+    let mask = 0;
+    for (let i = 0; i < interested.length; i++) if (freeMatrix[i][s]) mask |= (1 << i);
+    sig[s] = mask;
+  }
+
+  // Group into maximal runs of identical signature.
+  const runs = [];
+  let runStart = 0;
+  for (let s = 1; s <= TOTAL_SLOTS; s++) {
+    if (s === TOTAL_SLOTS || sig[s] !== sig[runStart]) {
+      runs.push({ start: runStart, end: s, mask: sig[runStart] });
+      runStart = s;
+    }
+  }
+
+  const scoredRuns = runs.map((r) => {
+    const attendees = interested.filter((p, i) => (r.mask & (1 << i)) !== 0);
+    const score = attendees.reduce((sum, p) => sum + 1 / p.topicPrefs[topic.id].priorityRank, 0);
+    return { ...r, attendees, score, count: attendees.length };
+  });
+
+  const eligible = scoredRuns.filter((r) => r.count >= MIN_ATTENDEES);
+
+  if (eligible.length === 0) {
+    const best = scoredRuns.reduce((a, b) => (b.count > a.count ? b : a), { count: 0, attendees: [] });
+    const names = best.attendees.map((p) => p.name).join(", ") || "nobody";
+    return {
+      topicId: topic.id,
+      windows: [],
+      reason: `Not enough overlap yet — needs ${MIN_ATTENDEES}+ people free at once; best right now is ${best.count} (${names}).`,
+    };
+  }
+
+  const topScore = Math.max(...eligible.map((r) => r.score));
+  const windows = eligible
+    .filter((r) => r.score >= topScore * (1 - TIE_MARGIN))
+    .sort((a, b) => b.score - a.score)
+    .map((r) => ({
+      day: Math.floor(r.start / SLOTS_PER_DAY),
+      startHour: (r.start % SLOTS_PER_DAY) / 2,
+      endHour: (r.end % SLOTS_PER_DAY === 0 ? SLOTS_PER_DAY : r.end % SLOTS_PER_DAY) / 2,
+      score: r.score,
+      attendees: r.attendees.map((p) => ({ name: p.name, rank: p.topicPrefs[topic.id].priorityRank })),
+    }));
+
+  return { topicId: topic.id, windows, reason: null };
+}
+
+// =========================================================================
+// THROWAWAY PAGE SHELL — everything below wires the module to buttons.
+// =========================================================================
+
+function freshState() {
+  return { participants: [], topics: [] };
+}
+let state = freshState();
+
+function fmtHour(h) {
+  const hh = Math.floor(h);
+  const mm = h % 1 === 0.5 ? "30" : "00";
+  return `${String(hh).padStart(2, "0")}:${mm}`;
+}
+
+function addParticipant(name) {
+  state.participants.push({ id: "p" + Date.now() + Math.random(), name, busyBlocks: [], topicPrefs: {} });
+}
+function addTopic(name) {
+  state.topics.push({ id: "t" + Date.now() + Math.random(), name });
+}
+function addBusyBlock(participantId, day, start, end) {
+  const p = state.participants.find((x) => x.id === participantId);
+  p.busyBlocks.push({ day, start, end });
+}
+function addTopicPreference(participantId, topicId, priorityRank) {
+  const p = state.participants.find((x) => x.id === participantId);
+  p.topicPrefs[topicId] = p.topicPrefs[topicId] || { priorityRank, topicBusyBlocks: [] };
+  p.topicPrefs[topicId].priorityRank = priorityRank;
+}
+function addTopicBusyBlock(participantId, topicId, day, start, end) {
+  const p = state.participants.find((x) => x.id === participantId);
+  if (!p.topicPrefs[topicId]) p.topicPrefs[topicId] = { priorityRank: 1, topicBusyBlocks: [] };
+  p.topicPrefs[topicId].topicBusyBlocks.push({ day, start, end });
+}
+
+function render() {
+  renderSelectors();
+  renderTable();
+  renderPlans();
+}
+
+function opt(v, label) { const o = document.createElement("option"); o.value = v; o.textContent = label; return o; }
+
+function renderSelectors() {
+  const fillParticipants = (id) => {
+    const el = document.getElementById(id);
+    const keep = el.value;
+    el.innerHTML = "";
+    state.participants.forEach((p) => el.appendChild(opt(p.id, p.name)));
+    if ([...el.options].some((o) => o.value === keep)) el.value = keep;
+  };
+  const fillTopics = (id) => {
+    const el = document.getElementById(id);
+    const keep = el.value;
+    el.innerHTML = "";
+    state.topics.forEach((t) => el.appendChild(opt(t.id, t.name)));
+    if ([...el.options].some((o) => o.value === keep)) el.value = keep;
+  };
+  ["bb-participant", "tp-participant", "tbb-participant"].forEach(fillParticipants);
+  ["tp-topic", "tbb-topic"].forEach(fillTopics);
+
+  const fillTime = (id) => {
+    const el = document.getElementById(id);
+    if (el.options.length) return;
+    for (let h = 0; h <= 24; h += 0.5) el.appendChild(opt(h, fmtHour(h)));
+  };
+  ["bb-start", "bb-end", "tbb-start", "tbb-end"].forEach(fillTime);
+  const fillDay = (id) => {
+    const el = document.getElementById(id);
+    if (el.options.length) return;
+    DAY_LABELS.forEach((label, i) => el.appendChild(opt(i, label)));
+  };
+  ["bb-day", "tbb-day"].forEach(fillDay);
+}
+
+function renderTable() {
+  const tbody = document.querySelector("#participants-table tbody");
+  tbody.innerHTML = "";
+  state.participants.forEach((p) => {
+    const tr = document.createElement("tr");
+    const bbList = p.busyBlocks
+      .map((b, i) => `<span class="pill">${DAY_LABELS[b.day]} ${fmtHour(b.start)}–${fmtHour(b.end)}
+        <button class="ghost" onclick="uiRemoveBusyBlock('${p.id}',${i})">×</button></span>`)
+      .join(" ") || '<span class="no-plan">none — fully free</span>';
+    const prefList = Object.entries(p.topicPrefs)
+      .map(([topicId, pref]) => {
+        const topic = state.topics.find((t) => t.id === topicId);
+        if (!topic) return "";
+        const tbb = pref.topicBusyBlocks
+          .map((b) => `${DAY_LABELS[b.day]} ${fmtHour(b.start)}–${fmtHour(b.end)}`)
+          .join(", ");
+        return `<span class="pill">${topic.name} (rank ${pref.priorityRank})${tbb ? " — busy " + tbb : ""}</span>`;
+      })
+      .join(" ") || '<span class="no-plan">none yet</span>';
+    tr.innerHTML = `<td>${p.name}</td><td>${bbList}</td><td>${prefList}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPlans() {
+  const out = document.getElementById("plans-output");
+  out.innerHTML = "";
+  if (state.topics.length === 0) {
+    out.innerHTML = '<p class="no-plan">No topics yet.</p>';
+    return;
+  }
+  const results = computeAllPlans(state.topics, state.participants);
+  results.forEach((r) => {
+    const topic = state.topics.find((t) => t.id === r.topicId);
+    const card = document.createElement("div");
+    if (r.windows.length === 0) {
+      card.className = "plan-card";
+      card.innerHTML = `<h3>${topic.name}</h3><p class="no-plan">No plan — ${r.reason}</p>`;
+    } else {
+      const windowsHtml = r.windows
+        .map((w, i) => {
+          const names = w.attendees.map((a) => `${a.name} (#${a.rank})`).join(", ");
+          return `<div class="plan-card ${i === 0 ? "leading" : ""}">
+            <h3>${topic.name} — ${DAY_LABELS[w.day]}, ${fmtHour(w.startHour)}–${fmtHour(w.endHour)}</h3>
+            <div class="score">score ${w.score.toFixed(2)} · ${w.attendees.length} attending</div>
+            <div class="why">Attending: ${names}</div>
+          </div>`;
+        })
+        .join("");
+      card.innerHTML = windowsHtml;
+    }
+    out.appendChild(card);
+  });
+}
+
+// ---- free-play handlers ----
+function uiAddParticipant() {
+  const el = document.getElementById("new-participant-name");
+  if (!el.value.trim()) return;
+  addParticipant(el.value.trim());
+  el.value = "";
+  render();
+}
+function uiAddTopic() {
+  const el = document.getElementById("new-topic-name");
+  if (!el.value.trim()) return;
+  addTopic(el.value.trim());
+  el.value = "";
+  render();
+}
+function uiAddBusyBlock() {
+  const pid = document.getElementById("bb-participant").value;
+  const day = Number(document.getElementById("bb-day").value);
+  const start = Number(document.getElementById("bb-start").value);
+  const end = Number(document.getElementById("bb-end").value);
+  if (!pid || end <= start) return;
+  addBusyBlock(pid, day, start, end);
+  render();
+}
+function uiAddTopicPreference() {
+  const pid = document.getElementById("tp-participant").value;
+  const tid = document.getElementById("tp-topic").value;
+  const rank = Number(document.getElementById("tp-rank").value);
+  if (!pid || !tid) return;
+  addTopicPreference(pid, tid, rank);
+  render();
+}
+function uiAddTopicBusyBlock() {
+  const pid = document.getElementById("tbb-participant").value;
+  const tid = document.getElementById("tbb-topic").value;
+  const day = Number(document.getElementById("tbb-day").value);
+  const start = Number(document.getElementById("tbb-start").value);
+  const end = Number(document.getElementById("tbb-end").value);
+  if (!pid || !tid || end <= start) return;
+  addTopicBusyBlock(pid, tid, day, start, end);
+  render();
+}
+function uiRemoveBusyBlock(pid, idx) {
+  const p = state.participants.find((x) => x.id === pid);
+  p.busyBlocks.splice(idx, 1);
+  render();
+}
+function uiReset() {
+  state = freshState();
+  render();
+}
+
+// ---- guided walkthroughs ----
+const scenarios = [
+  {
+    name: "Happy path: dinner forms",
+    desc: "Four friends are all roughly free Saturday evening. Watch a clear Dinner plan form once enough of them declare interest.",
+    steps: [
+      { label: "Add Alice, Bob, Carol, Dana", run: () => ["Alice", "Bob", "Carol", "Dana"].forEach(addParticipant) },
+      { label: "Add topic: Dinner", run: () => addTopic("Dinner") },
+      { label: "Alice: busy Sat until 17:00", run: () => addBusyBlock(id("Alice"), 1, 0, 17) },
+      { label: "Bob: busy Sat until 18:00", run: () => addBusyBlock(id("Bob"), 1, 0, 18) },
+      { label: "Carol & Dana: no constraints", run: () => {} },
+      { label: "All 4 set Dinner as priority #1", run: () => ["Alice", "Bob", "Carol", "Dana"].forEach((n) => addTopicPreference(id(n), tid("Dinner"), 1)) },
+    ],
+  },
+  {
+    name: "Kid's bedtime narrows ONE topic",
+    desc: "Dana is generally free until midnight, but has a 4-year-old — she can't do a late online game past 20:00. Watch that this doesn't touch her Dinner availability at all.",
+    steps: [
+      { label: "Add Dana, Eve, Finn", run: () => ["Dana", "Eve", "Finn"].forEach(addParticipant) },
+      { label: "Add topics: Dinner, Online Game", run: () => { addTopic("Dinner"); addTopic("Online Game"); } },
+      { label: "All 3 interested in Dinner (#1) and Online Game (#2)", run: () =>
+          ["Dana", "Eve", "Finn"].forEach((n) => { addTopicPreference(id(n), tid("Dinner"), 1); addTopicPreference(id(n), tid("Online Game"), 2); }) },
+      { label: "Dana: Topic Busy Block on Online Game, Sat 20:00–24:00 (bedtime)", run: () => addTopicBusyBlock(id("Dana"), tid("Online Game"), 1, 20, 24) },
+      { label: "Eve & Finn: no constraints", run: () => {} },
+      { label: "Compare: Dinner's window vs Online Game's window", run: () => {} },
+    ],
+  },
+  {
+    name: "Not enough interest → no plan",
+    desc: "Only one person cares about Coffee. Check that the system reports 'no plan yet' rather than erroring or inventing one.",
+    steps: [
+      { label: "Add Gus, Hana", run: () => ["Gus", "Hana"].forEach(addParticipant) },
+      { label: "Add topic: Coffee", run: () => addTopic("Coffee") },
+      { label: "Only Gus is interested in Coffee (#1)", run: () => addTopicPreference(id("Gus"), tid("Coffee"), 1) },
+    ],
+  },
+  {
+    name: "Priority breaks a tie",
+    desc: "Two windows end up with the same headcount — does the one with higher-priority attendees actually win, even with fewer total people? This is the case that's hardest to eyeball on paper.",
+    steps: [
+      { label: "Add Ivy, Jack, Kim", run: () => ["Ivy", "Jack", "Kim"].forEach(addParticipant) },
+      { label: "Add topic: Board Games", run: () => addTopic("Board Games") },
+      { label: "Ivy & Jack: free Sat evening, rank Board Games #1", run: () =>
+          ["Ivy", "Jack"].forEach((n) => addTopicPreference(id(n), tid("Board Games"), 1)) },
+      { label: "Kim: free Sun evening only, ranks Board Games #4 (low)", run: () => {
+          addBusyBlock(id("Kim"), 1, 0, 24);
+          addTopicPreference(id("Kim"), tid("Board Games"), 4);
+        } },
+      { label: "Ivy & Jack ALSO free Sun evening (so Sun has all 3)", run: () => {} },
+      { label: "See which window wins: Sat (2 people, rank 1) or Sun (3 people incl. rank 4)", run: () => {} },
+    ],
+  },
+];
+
+let activeScenario = 0;
+let stepsDone = 0;
+
+function id(name) { return state.participants.find((p) => p.name === name)?.id; }
+function tid(name) { return state.topics.find((t) => t.name === name)?.id; }
+
+function renderTabs() {
+  const tabsEl = document.getElementById("tabs");
+  tabsEl.innerHTML = "";
+  scenarios.forEach((s, i) => {
+    const b = document.createElement("div");
+    b.className = "tab" + (i === activeScenario ? " active" : "");
+    b.textContent = s.name;
+    b.onclick = () => { activeScenario = i; stepsDone = 0; uiReset(); renderScenario(); };
+    tabsEl.appendChild(b);
+  });
+}
+
+function renderScenario() {
+  const s = scenarios[activeScenario];
+  document.getElementById("scenario-desc").textContent = s.desc;
+  const stepsEl = document.getElementById("scenario-steps");
+  stepsEl.innerHTML = "";
+  s.steps.forEach((step, i) => {
+    if (i < stepsDone) {
+      const done = document.createElement("div");
+      done.className = "step-done";
+      done.textContent = step.label;
+      stepsEl.appendChild(done);
+    } else if (i === stepsDone) {
+      const btn = document.createElement("button");
+      btn.textContent = "▶ " + step.label;
+      btn.onclick = () => { step.run(); stepsDone++; render(); renderScenario(); };
+      stepsEl.appendChild(btn);
+    }
+  });
+  if (stepsDone === s.steps.length) {
+    const done = document.createElement("div");
+    done.className = "step-done";
+    done.textContent = "Scenario complete — check Computed Plans above.";
+    stepsEl.appendChild(done);
+  }
+}
+
+renderTabs();
+renderScenario();
+render();
+</script>
+</body>
+</html>
