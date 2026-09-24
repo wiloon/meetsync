@@ -115,6 +115,8 @@
       <button class="btn secondary" onclick="copyLink()" id="t-copyBtn"></button>
     </div>
     <p class="hint" style="text-align:left;" id="t-nextHint"></p>
+    <a class="btn secondary" id="t-setUpOwnBtn" href="prototype-busy-block-calendar.html" style="display:block;text-align:center;margin-top:14px;text-decoration:none;"></a>
+    <p class="hint" id="t-setUpOwnHint"></p>
   </div>
 </div>
 
@@ -152,6 +154,8 @@ const STRINGS = {
     shareLinkLabel: "Share this link",
     copyBtn: "Copy",
     nextHint: "Anyone with this link can join, pick a name, and start adding their availability and topic votes — that part's the next scenario.",
+    setUpOwnBtn: "Set up my own availability now",
+    setUpOwnHint: "Optional — you can just share the link and come back to this later.",
     topicRemovePlaceholder: "Topic name",
     quickTopics: ["Dinner", "Coffee", "Online game", "Video call", "Outing"],
     untitled: "Untitled gathering",
@@ -182,6 +186,8 @@ const STRINGS = {
     shareLinkLabel: "分享这个链接",
     copyBtn: "复制",
     nextHint: "拿到这个链接的人都可以加入、选个名字,然后填自己的空闲时间和主题投票——那是下一个场景。",
+    setUpOwnBtn: "现在设置我自己的时间",
+    setUpOwnHint: "可选——你也可以先只分享链接,以后再回来填。",
     topicRemovePlaceholder: "主题名称",
     quickTopics: ["吃饭", "喝咖啡", "线上游戏", "视频通话", "出去玩"],
     untitled: "未命名活动",
@@ -219,6 +225,8 @@ function renderStrings() {
   document.getElementById("t-shareLinkLabel").textContent = s.shareLinkLabel;
   document.getElementById("t-copyBtn").textContent = s.copyBtn;
   document.getElementById("t-nextHint").textContent = s.nextHint;
+  document.getElementById("t-setUpOwnBtn").textContent = s.setUpOwnBtn;
+  document.getElementById("t-setUpOwnHint").textContent = s.setUpOwnHint;
   document.getElementById("layout-note").textContent = s.note;
   renderChips();
   renderTopicRows();
