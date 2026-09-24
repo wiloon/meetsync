@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>PROTOTYPE — meetsync: English/Chinese language switch (throwaway, not production)</title>
+<title>PROTOTYPE — meetsync: Create a Gathering, English/Chinese (throwaway, not production)</title>
 <style>
   :root { --accent: #2f6f4f; --accent-light: #eaf3ee; --bg: #faf9f6; --panel: #ffffff; --line: #e6e3da; --text: #26261f; --muted: #7a7a6e; }
   * { box-sizing: border-box; }
@@ -14,14 +14,12 @@
   .stage { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 24px; }
   .stage.active { display: flex; }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 40px; max-width: 460px; width: 100%; box-shadow: 0 2px 20px rgba(0,0,0,.04); }
-  .card.wide { max-width: 560px; }
+  .card.wide { max-width: 620px; }
   h1 { font-size: 22px; margin: 0 0 6px; }
   .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; line-height: 1.5; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; margin-top: 18px; }
   label:first-of-type { margin-top: 0; }
-  input[type=text], input[type=date] { width: 100%; padding: 10px 12px; border: 1px solid #d8d4c8; border-radius: 8px; font-size: 14px; font-family: inherit; }
-  .date-row { display: flex; gap: 12px; }
-  .date-row > div { flex: 1; }
+  input[type=text] { width: 100%; padding: 10px 12px; border: 1px solid #d8d4c8; border-radius: 8px; font-size: 14px; font-family: inherit; }
   .btn { display: inline-block; background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 12px 22px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 28px; }
   .btn.secondary { background: none; color: var(--accent); border: 1.5px solid var(--accent); width: auto; padding: 8px 14px; font-size: 13px; margin-top: 0; }
   .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
@@ -37,6 +35,25 @@
   .step-nav { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; border-radius: 20px; padding: 6px 16px; font-size: 12px; display: flex; gap: 10px; align-items: center; }
   .step-nav button { background: none; border: none; color: #fff; cursor: pointer; font-size: 13px; }
   .note-box { position: fixed; bottom: 54px; left: 50%; transform: translateX(-50%); background: #fffaf0; border: 1px solid #e8d68a; border-radius: 8px; padding: 8px 14px; font-size: 12px; color: #7a5c00; max-width: 460px; text-align: center; }
+
+  /* Two-month calendar (merged in from the date-picker-calendar prototype) */
+  .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .month-nav button { background: #fff; border: 1px solid #cfcbbf; color: var(--accent); border-radius: 6px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; }
+  .month-nav button:disabled { color: #ccc9bd; border-color: #e6e3da; cursor: default; }
+  .month-nav .range-label { font-size: 12px; color: var(--muted); }
+  .months { display: flex; gap: 20px; flex-wrap: wrap; }
+  .month { flex: 1; min-width: 220px; }
+  .month h3 { font-size: 13px; text-align: center; margin: 0 0 8px; font-weight: 600; }
+  table.cal { border-collapse: collapse; width: 100%; }
+  table.cal th { font-size: 10px; color: var(--muted); font-weight: 600; padding: 3px 0; }
+  table.cal td { text-align: center; padding: 0; }
+  .day-cell { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin: 1px auto; border-radius: 7px; font-size: 12px; cursor: pointer; }
+  .day-cell.empty { cursor: default; }
+  .day-cell.past { color: #ccc9bd; cursor: default; }
+  .day-cell.selected { background: var(--accent); color: #fff; font-weight: 700; }
+  .day-cell.today { border: 1.5px solid var(--accent); }
+  .selected-summary { margin-top: 12px; font-size: 12px; }
+  .none { color: var(--muted); font-style: italic; }
 </style>
 </head>
 <body>
@@ -46,9 +63,10 @@
   <button id="btn-zh" onclick="setLang('zh')">中文</button>
 </div>
 
-<!-- Reuses the Create Gathering flow as the test bed: real buttons, labels, chips, and a
-     multi-line paragraph, so we can see whether Chinese text actually breaks this layout,
-     not just single words. -->
+<!-- Merges two earlier prototypes into one canonical Create Gathering flow: the language
+     switch (real buttons/labels/paragraphs, so Chinese string length is tested against a real
+     layout) and the two-month click/drag date picker (so it isn't left behind as a stale
+     From/Until version once the calendar became the actual decision). -->
 
 <div class="stage active" id="stage-landing">
   <div class="card center">
@@ -66,17 +84,15 @@
     <label id="t-nameLabel"></label>
     <input type="text" id="g-title">
 
-    <label id="t-dateRangeLabel"></label>
-    <div class="date-row">
-      <div>
-        <span class="hint" id="t-fromLabel" style="margin:0 0 4px;display:block;"></span>
-        <input type="date" id="g-start">
-      </div>
-      <div>
-        <span class="hint" id="t-untilLabel" style="margin:0 0 4px;display:block;"></span>
-        <input type="date" id="g-end">
-      </div>
+    <label id="t-dateSectionLabel"></label>
+    <div class="hint" id="t-dateHint" style="margin-top:-4px;margin-bottom:10px;"></div>
+    <div class="month-nav">
+      <button id="nav-prev" onclick="navMonths(-1)">‹</button>
+      <span class="range-label" id="nav-label"></span>
+      <button id="nav-next" onclick="navMonths(1)">›</button>
     </div>
+    <div class="months" id="months"></div>
+    <div class="selected-summary" id="selected-summary"></div>
 
     <label><span id="t-topicsLabel"></span> <span style="font-weight:400;color:var(--muted);" id="t-topicsOptional"></span></label>
     <div class="chips" id="topic-chips"></div>
@@ -114,12 +130,17 @@ const STRINGS = {
     tagline: "Agree on a time, a topic, and who's covering the cost — no login needed.",
     createBtn: "+ Create a Gathering",
     createTitle: "Create a Gathering",
-    createSub: "Set a date range and, if you like, a few topics to get people started. Anyone can add more topics later.",
+    createSub: "Pick some candidate dates and, if you like, a few topics to get people started. Anyone can add more topics later.",
     nameLabel: "Gathering name",
     namePlaceholder: "e.g. Catching up with the old team",
-    dateRangeLabel: "Date range",
-    fromLabel: "From",
-    untilLabel: "Until",
+    dateSectionLabel: "Candidate dates",
+    dateHint: "Click a date to select it, or click-and-drag across several days to select a run.",
+    weekdays: ["Su","Mo","Tu","We","Th","Fr","Sa"],
+    monthsLong: ["January","February","March","April","May","June","July","August","September","October","November","December"],
+    monthsShort: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+    formatRange: (leftY, leftM, rightY, rightM) => `Showing ${STRINGS.en.monthsLong[leftM]} – ${STRINGS.en.monthsLong[rightM]} ${rightY}`,
+    formatChipDate: (y, m, d) => `${STRINGS.en.monthsShort[m]} ${d}`,
+    noDatesSelected: "No dates selected yet.",
     topicsLabel: "Topics",
     topicsOptional: "(optional — add now or later)",
     addCustomTopic: "+ Add a custom topic",
@@ -139,12 +160,17 @@ const STRINGS = {
     tagline: "无需登录,一起定下时间、主题和谁请客。",
     createBtn: "+ 创建活动",
     createTitle: "创建活动",
-    createSub: "设置一个时间范围,也可以顺便加几个主题让大家有个方向,之后谁都可以再加主题。",
+    createSub: "先选几个候选日期,也可以顺便加几个主题让大家有个方向,之后谁都可以再加主题。",
     nameLabel: "活动名称",
     namePlaceholder: "例如:老同事聚聚",
-    dateRangeLabel: "时间范围",
-    fromLabel: "从",
-    untilLabel: "到",
+    dateSectionLabel: "候选日期",
+    dateHint: "点击选择单个日期,或者拖拽选择连续几天。",
+    weekdays: ["日","一","二","三","四","五","六"],
+    monthsLong: ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+    monthsShort: ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+    formatRange: (leftY, leftM, rightY, rightM) => `显示 ${leftY}年${STRINGS.zh.monthsLong[leftM]} – ${STRINGS.zh.monthsLong[rightM]}`,
+    formatChipDate: (y, m, d) => `${STRINGS.zh.monthsShort[m]}${d}日`,
+    noDatesSelected: "还没有选日期。",
     topicsLabel: "主题",
     topicsOptional: "(可选——现在加或以后加都行)",
     addCustomTopic: "+ 添加自定义主题",
@@ -183,9 +209,8 @@ function renderStrings() {
   document.getElementById("t-createSub").textContent = s.createSub;
   document.getElementById("t-nameLabel").textContent = s.nameLabel;
   document.getElementById("g-title").placeholder = s.namePlaceholder;
-  document.getElementById("t-dateRangeLabel").textContent = s.dateRangeLabel;
-  document.getElementById("t-fromLabel").textContent = s.fromLabel;
-  document.getElementById("t-untilLabel").textContent = s.untilLabel;
+  document.getElementById("t-dateSectionLabel").textContent = s.dateSectionLabel;
+  document.getElementById("t-dateHint").textContent = s.dateHint;
   document.getElementById("t-topicsLabel").textContent = s.topicsLabel;
   document.getElementById("t-topicsOptional").textContent = s.topicsOptional;
   document.getElementById("t-addCustomTopic").textContent = s.addCustomTopic;
@@ -196,6 +221,7 @@ function renderStrings() {
   document.getElementById("layout-note").textContent = s.note;
   renderChips();
   renderTopicRows();
+  renderCalendar();
 }
 
 function goTo(name) {
@@ -234,6 +260,120 @@ function renderTopicRows() {
 }
 
 function removeTopicRow(i) { topics.splice(i, 1); renderChips(); renderTopicRows(); }
+
+// =========================================================================
+// Two-month calendar — same pure date-set module as the date-picker-calendar
+// prototype, wired to the shared translation strings for labels.
+// =========================================================================
+
+const selectedDates = new Set();
+const today = new Date(); today.setHours(0,0,0,0);
+let dragging = false, dragAdd = true, dragStartIso = null;
+let monthOffset = 0;
+const MAX_MONTH_OFFSET = 10;
+
+function isoDate(y, m, d) { return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`; }
+function toggleDate(iso) { if (selectedDates.has(iso)) selectedDates.delete(iso); else selectedDates.add(iso); }
+function selectRange(startIso, endIso, add) {
+  const [a, b] = [new Date(startIso), new Date(endIso)].sort((x, y) => x - y);
+  for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+    const iso = isoDate(d.getFullYear(), d.getMonth(), d.getDate());
+    if (add) selectedDates.add(iso); else selectedDates.delete(iso);
+  }
+}
+function sortedDates() { return Array.from(selectedDates).sort(); }
+function groupRuns(sorted) {
+  const runs = []; let run = [];
+  for (const iso of sorted) {
+    if (run.length === 0) { run = [iso]; continue; }
+    const prev = new Date(run[run.length - 1]);
+    prev.setDate(prev.getDate() + 1);
+    if (isoDate(prev.getFullYear(), prev.getMonth(), prev.getDate()) === iso) run.push(iso);
+    else { runs.push(run); run = [iso]; }
+  }
+  if (run.length) runs.push(run);
+  return runs;
+}
+
+function navMonths(delta) {
+  monthOffset = Math.max(0, Math.min(MAX_MONTH_OFFSET, monthOffset + delta));
+  renderCalendar();
+}
+
+function renderOneMonth(container, year, month) {
+  const s = t();
+  const el = document.createElement("div");
+  el.className = "month";
+  el.innerHTML = `<h3>${s.monthsLong[month]} ${year}</h3>`;
+  const table = document.createElement("table");
+  table.className = "cal";
+  const thead = document.createElement("tr");
+  s.weekdays.forEach((w) => { const th = document.createElement("th"); th.textContent = w; thead.appendChild(th); });
+  table.appendChild(thead);
+
+  const startWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let day = 1 - startWeekday;
+  for (let row = 0; row < 6 && day <= daysInMonth; row++) {
+    const tr = document.createElement("tr");
+    for (let col = 0; col < 7; col++, day++) {
+      const td = document.createElement("td");
+      if (day < 1 || day > daysInMonth) { td.innerHTML = `<div class="day-cell empty"></div>`; tr.appendChild(td); continue; }
+      const iso = isoDate(year, month, day);
+      const cellDate = new Date(year, month, day);
+      const isPast = cellDate < today;
+      const isToday = cellDate.getTime() === today.getTime();
+      const cell = document.createElement("div");
+      cell.className = "day-cell" + (selectedDates.has(iso) ? " selected" : "") + (isPast ? " past" : "") + (isToday ? " today" : "");
+      cell.textContent = day;
+      if (!isPast) {
+        cell.onmousedown = (e) => {
+          e.preventDefault();
+          dragging = true; dragStartIso = iso; dragAdd = !selectedDates.has(iso);
+          toggleDate(iso); renderCalendar();
+        };
+        cell.onmouseenter = () => { if (dragging) { selectRange(dragStartIso, iso, dragAdd); renderCalendar(); } };
+      }
+      td.appendChild(cell);
+      tr.appendChild(td);
+    }
+    table.appendChild(tr);
+  }
+  el.appendChild(table);
+  container.appendChild(el);
+}
+
+document.addEventListener("mouseup", () => { dragging = false; });
+
+function renderCalendarSummary() {
+  const s = t();
+  const box = document.getElementById("selected-summary");
+  const sorted = sortedDates();
+  if (sorted.length === 0) { box.innerHTML = `<span class="none">${s.noDatesSelected}</span>`; return; }
+  const runs = groupRuns(sorted);
+  box.innerHTML = runs.map((run) => {
+    const [sy, sm, sd] = run[0].split("-").map(Number);
+    const label = run.length === 1
+      ? s.formatChipDate(sy, sm - 1, sd)
+      : (() => { const [ey, em, ed] = run[run.length-1].split("-").map(Number); return `${s.formatChipDate(sy, sm-1, sd)} – ${s.formatChipDate(ey, em-1, ed)}`; })();
+    return `<span class="chip">${label} <button class="remove" style="font-size:12px;" onclick="removeRun('${run[0]}','${run[run.length-1]}')">×</button></span>`;
+  }).join(" ");
+}
+function removeRun(startIso, endIso) { selectRange(startIso, endIso, false); renderCalendar(); }
+
+function renderCalendar() {
+  const s = t();
+  const container = document.getElementById("months");
+  container.innerHTML = "";
+  const left = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+  const right = new Date(today.getFullYear(), today.getMonth() + monthOffset + 1, 1);
+  renderOneMonth(container, left.getFullYear(), left.getMonth());
+  renderOneMonth(container, right.getFullYear(), right.getMonth());
+  document.getElementById("nav-label").textContent = s.formatRange(left.getFullYear(), left.getMonth(), right.getFullYear(), right.getMonth());
+  document.getElementById("nav-prev").disabled = monthOffset === 0;
+  document.getElementById("nav-next").disabled = monthOffset === MAX_MONTH_OFFSET;
+  renderCalendarSummary();
+}
 
 function createGathering() {
   const s = t();
