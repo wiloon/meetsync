@@ -9,7 +9,7 @@
 设计中,尚无代码。
 
 - 术语表:[`CONTEXT.md`](CONTEXT.md)
-- 架构决策:[`docs/adr/`](docs/adr/)(0001–0006)
+- 架构决策:[`docs/adr/`](docs/adr/)(0001–0008)
 
 工程流程按 [mattpocock-skills](https://github.com/mattpocock/skills)。
 

@@ -1,5 +1,9 @@
 # meetsync
 
+## Language convention
+
+All written artifacts in this repo are English-only: UI copy, `CONTEXT.md`, ADRs, commit messages, code comments, identifiers. This applies regardless of what language the design conversation that produced them was held in.
+
 ## Agent skills
 
 ### Issue tracker

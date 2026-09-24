@@ -10,3 +10,7 @@ The problem this solves is social, not financial: in the group that motivated th
 
 - If two Participants both declare Sponsor on the same Topic, meetsync shows both and does not arbitrate; they resolve it themselves outside the system.
 - No amounts, receipts, or balances are ever stored. A future reader adding a "total cost" field should treat that as a new feature requiring its own decision, not a natural extension of Sponsor.
+
+## Update (Phase 2)
+
+Phase 2 adds Pledge: a Participant-declared contribution amount, optionally capped, toward an Organizer-set Estimated Cost (see [0008](0008-phase-2-cost-pledges-narrow-visibility.md)). This still isn't settlement math or payment processing — no splitting, no "who owes what," no payment integration. Phase 1 ships with Sponsor/Split exactly as described above.

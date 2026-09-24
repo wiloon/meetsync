@@ -37,8 +37,33 @@ A Participant's available time, derived by subtracting their Busy Blocks from th
 _Avoid_: availability (ambiguous about which direction it's phrased in)
 
 **Topic Preference**:
-A Participant's stance on one Topic: a priority rank relative to their other Topic Preferences in the same Gathering, plus an optional time window narrower than their Free Time. Without a narrower window, a Topic Preference inherits the Participant's full Free Time.
+A Participant's stance on one Topic: a priority rank relative to their other Topic Preferences in the same Gathering, plus any Topic Busy Blocks that further narrow their Free Time for that Topic specifically. Without any Topic Busy Blocks, a Topic Preference's effective time is the Participant's full Free Time.
 _Avoid_: vote, interest, rating
+
+**Topic Busy Block**:
+A Busy Block scoped to one Topic rather than the whole Gathering: time the Participant can't give to that Topic specifically, even though they're otherwise free then. Narrows only that Topic's effective time, leaving the Participant's Free Time and other Topics untouched.
+_Avoid_: time preference, restriction, exception
+
+### Access & billing
+
+**Organizer Account**:
+The authenticated identity an Organizer holds, separate from a Participant's link-based identity. Persists across Gatherings and holds the AI Credit Balance that pays for AI-assisted interactions.
+_Avoid_: user account
+
+**Gathering Passcode**:
+An optional shared secret an Organizer sets on a Gathering; when set, anyone must supply it before claiming a Participant name. A single shared value, not a personal credential — it gates joining without giving any Participant a persistent identity.
+_Avoid_: password
+
+**AI Credit Balance**:
+Funds an Organizer holds to pay for AI-assisted interactions (parsing freeform input, generating Plan summaries) across everyone in their Gatherings. Participants never see or manage it directly.
+_Avoid_: wallet, credits
+
+**Interaction Limit**:
+A per-Participant cap, by both frequency and count, on AI-assisted interactions within a Gathering — bounds how much of an Organizer's AI Credit Balance any single Participant can consume.
+_Avoid_: rate limit
+
+**Low Balance Alert**:
+A notice sent to the Organizer when their AI Credit Balance can no longer cover further AI-assisted interactions, or when a Participant hits their Interaction Limit.
 
 ### Outcome & cost
 
@@ -53,3 +78,11 @@ _Avoid_: AA (fine as spoken shorthand, but not the canonical term in docs or cod
 **Plan**:
 One finalized outcome the matching step proposes: a Topic, a time window, and an attendee set. A single Gathering can resolve into more than one Plan — the group is not required to converge on one answer.
 _Avoid_: match, result, proposal
+
+**Estimated Cost**:
+An amount the Organizer sets on a Topic for what it's expected to cost. The reference point a Pledge's aggregate progress is measured against.
+_Avoid_: budget, price
+
+**Pledge**:
+A Participant's declared monetary contribution toward a Topic's Estimated Cost, with an optional cap. Visible only to the Organizer and the pledging Participant — every other Participant sees only aggregate progress against the Estimated Cost, never named amounts. Distinct from Sponsor, which covers a Topic's entire cost by declaration rather than a specific contributed amount.
+_Avoid_: donation, contribution
