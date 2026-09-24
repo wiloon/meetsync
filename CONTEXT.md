@@ -48,6 +48,14 @@ _Avoid_: time preference, restriction, exception
 An optional place suggestion attached to a Topic (a specific café, "at Sam's place", "online"). Free text, not voted on or scored — a shared note so a Topic's Plan carries a place alongside its time and attendees.
 _Avoid_: venue, address
 
+**Gathering Timezone**:
+The timezone a Gathering's dates are anchored to, auto-detected from the Organizer's browser at creation with a manual override. Every Busy Block, Topic Busy Block, and Plan is stored and scored as an absolute instant against it, never a bare hour number.
+_Avoid_: server timezone, UTC (UTC is the storage format, not this)
+
+**Viewing Timezone**:
+The timezone a Participant sees times displayed in and enters Busy Blocks against — auto-detected from their own browser with a manual override, independent of the Gathering Timezone. The same instant renders as different wall-clock hours to Participants with different Viewing Timezones.
+_Avoid_: local time (ambiguous about whose local)
+
 ### Access & billing
 
 **Organizer Account**:
