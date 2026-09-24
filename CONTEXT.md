@@ -7,11 +7,11 @@ meetsync lets a small group agree on a topic, a time, and who covers the cost fo
 ### People & access
 
 **Gathering**:
-The invite an Organizer creates: a title, a date range, and a link. Contains one or more Topics.
+The invite an Organizer creates: a title, a set of candidate dates (contiguous or not), and a link. Contains one or more Topics.
 _Avoid_: event, meetup, activity
 
 **Organizer**:
-The Participant who created the Gathering and set its date range. Carries no power beyond that authorship — an Organizer proposes and votes on Topics like anyone else.
+The Participant who created the Gathering and set its dates. Carries no power beyond that authorship — an Organizer proposes and votes on Topics like anyone else.
 _Avoid_: host, admin, creator
 
 **Participant**:
@@ -29,11 +29,11 @@ A candidate activity proposed inside a Gathering (dinner, coffee, an online game
 _Avoid_: activity, event, option, poll
 
 **Busy Block**:
-A span of time within the Gathering's date range where a Participant states they cannot attend anything, regardless of Topic. Entered once per Participant, independent of any Topic.
+A span of time within the Gathering's selected dates where a Participant states they cannot attend anything, regardless of Topic. Entered once per Participant, independent of any Topic.
 _Avoid_: unavailability, conflict, time off
 
 **Free Time**:
-A Participant's available time, derived by subtracting their Busy Blocks from the Gathering's date range. Never entered directly — it's a computed view, not a field.
+A Participant's available time, derived by subtracting their Busy Blocks from the Gathering's selected dates. Never entered directly — it's a computed view, not a field.
 _Avoid_: availability (ambiguous about which direction it's phrased in)
 
 **Topic Preference**:
