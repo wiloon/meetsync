@@ -44,11 +44,13 @@
   <div class="badge">PROTOTYPE — throwaway, not production</div>
   <h1>Join a Gathering, claim a name</h1>
   <div class="intro">
-    <b>Question this demo answers:</b> stories 3–6 from issue #1 — asking for a name before anything else, rejecting a name
-    someone else is actively holding, recognizing a returning Participant on the same browser without re-asking, and treating
-    a new browser (or cleared storage) as a new Participant if the old name is still active elsewhere. "My device" below uses
-    real <code>localStorage</code>, so an actual page reload (F5) genuinely tests the "same browser" case — everything else
-    (other participants, a new browser) is simulated with buttons since one browser tab can't literally be two devices.
+    <b>Question this demo answers:</b> stories 3–6, 51-53 from issue #1 — asking for a name before anything else, rejecting a
+    name someone else is actively holding, recognizing a returning Participant on the same browser without re-asking, treating
+    a new browser (or cleared storage) as a new Participant if the old name is still active elsewhere, voluntary leave, and
+    showing a public <b>Claim Badge</b> per <a href="https://github.com/wiloon/meetsync/blob/main/docs/adr/0012-public-claim-badge-never-the-token.md">ADR-0012</a>
+    instead of the raw Identity Token. "My device" below uses real <code>localStorage</code>, so an actual page reload (F5)
+    genuinely tests the "same browser" case — everything else (other participants, a new browser) is simulated with buttons
+    since one browser tab can't literally be two devices.
   </div>
 
   <section>
@@ -71,7 +73,7 @@
       <button class="danger" onclick="uiResetAll()">Reset entire demo</button>
     </div>
     <table>
-      <thead><tr><th>Name</th><th>Status</th><th>Token</th></tr></thead>
+      <thead><tr><th>Name</th><th>Status</th><th>Claim Badge</th></tr></thead>
       <tbody id="participants-body"></tbody>
     </table>
   </section>
@@ -85,6 +87,16 @@
 function freshServer() { return { participants: [] }; }
 
 function randomToken() { return "tok_" + Math.random().toString(36).slice(2, 10); }
+
+// ADR-0012: never show the Identity Token itself. This is a demo-only synchronous
+// stand-in for the real implementation (SHA-256 truncated, computed server-side) --
+// good enough here to prove the property that matters: same token -> same badge,
+// different token -> different badge, and the badge alone can't reconstruct the token.
+function claimBadge(token) {
+  let h = 0;
+  for (let i = 0; i < token.length; i++) h = (h * 31 + token.charCodeAt(i)) >>> 0;
+  return h.toString(16).padStart(8, "0").slice(0, 8);
+}
 
 // Attempt to join with `name`, given whatever token (if any) this device already holds.
 // Returns a discriminated result; never mutates on failure.
@@ -141,8 +153,8 @@ function renderDevice() {
   const result = attemptJoin(server, "", myToken()); // recognition check only, no name typed
   if (result.kind === "recognized") {
     el.innerHTML = `<div class="device-card recognized">
-      <p>Welcome back, <b>${result.participant.name}</b> — recognized from this browser's stored token, no re-entry needed.</p>
-      <div class="token">token: ${result.participant.token}</div>
+      <p>Welcome back, <b>${result.participant.name}</b> — recognized from this browser's stored Identity Token, no re-entry needed.</p>
+      <div class="token">your Claim Badge: ${claimBadge(result.participant.token)} (the actual Identity Token never leaves this browser)</div>
       <div class="row" style="margin-top:12px;">
         <button class="danger" onclick="uiLeave()">Leave Gathering (frees my name)</button>
         <button class="secondary" onclick="uiForgetBrowser()">Simulate: new browser / cleared storage</button>
@@ -171,7 +183,7 @@ function renderParticipants() {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${p.name}${p.token === myToken() ? " (this device)" : ""}</td>
       <td class="${p.active ? "status-active" : "status-left"}">${p.active ? "Active" : "Left"}</td>
-      <td class="token">${p.token}</td>`;
+      <td class="token">${claimBadge(p.token)}</td>`;
     tbody.appendChild(tr);
   });
 }
@@ -260,6 +272,17 @@ const scenarios = [
       { label: "Simulate switching to a new browser", run: () => uiForgetBrowser() },
       { label: "Try to join as 'Dana' again (should fail)", run: () => simulateJoin("Dana") },
       { label: "Join as 'Dana (phone)' instead (should succeed)", run: () => simulateJoin("Dana (phone)") },
+    ],
+  },
+  {
+    name: "Claim Badge changes when a name changes hands",
+    desc: "Stories 51-52: leave voluntarily, then watch someone else claim the freed name from a different device — the Claim Badge in the table below changes, but it's a one-way hash, never the actual Identity Token (ADR-0012).",
+    steps: [
+      { label: "Reset the demo", run: () => uiResetAllSilent() },
+      { label: "Join as 'Eve' — note her Claim Badge in the table below", run: () => simulateJoin("Eve") },
+      { label: "Leave voluntarily (frees the name immediately, no 24h wait)", run: () => uiLeave() },
+      { label: "Simulate a different device claiming 'Eve' now that it's free", run: () => { setMyToken(null); simulateJoin("Eve"); } },
+      { label: "Compare: same name, different Claim Badge — that's the signal", run: () => {} },
     ],
   },
 ];
