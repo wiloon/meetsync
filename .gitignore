@@ -4,6 +4,7 @@
 # Go
 /api/meetsync-api
 /api/*.test
+/api/meetsync.db
 
 # Node
 node_modules/

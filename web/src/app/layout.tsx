@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { LocaleProvider } from "@/i18n/LocaleContext";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,7 +22,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <LocaleProvider>
+          <div style={{ position: "fixed", top: 10, right: 10, zIndex: 10 }}>
+            <LanguageSwitch />
+          </div>
+          {children}
+        </LocaleProvider>
+      </body>
     </html>
   );
 }
