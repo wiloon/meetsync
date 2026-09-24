@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 )
 
 // corsMiddleware allows the local Next.js dev server to call this API
@@ -19,8 +20,20 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
+	dbPath := os.Getenv("MEETSYNC_DB_PATH")
+	if dbPath == "" {
+		dbPath = "meetsync.db"
+	}
+	store, err := OpenStore(dbPath)
+	if err != nil {
+		log.Fatalf("could not open store at %s: %v", dbPath, err)
+	}
+	defer store.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", healthHandler)
+	mux.HandleFunc("/api/gatherings", gatheringsHandler(store))
+	mux.HandleFunc("/api/gatherings/", gatheringsHandler(store))
 
 	addr := ":8080"
 	log.Printf("meetsync-api listening on %s", addr)
