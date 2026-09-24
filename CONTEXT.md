@@ -19,8 +19,12 @@ Anyone who opens a Gathering's link and claims a display name. No account or pas
 _Avoid_: user, member, guest
 
 **Identity Claim**:
-A returning Participant recovering their previously-chosen name in a Gathering, backed by a browser-local token rather than a login. A name already claimed by an active token cannot be claimed by someone else. A claim goes inactive automatically after 24 hours with no activity, or can be released early by the Organizer — either frees the name for someone (including its original holder, from a new device) to claim.
+A returning Participant recovering their previously-chosen name in a Gathering, backed by a browser-local Identity Token rather than a login. A name already claimed by an active token cannot be claimed by someone else. A claim goes inactive automatically after 24 hours with no activity, when the Participant voluntarily leaves, or when the Organizer releases it early — any of the three frees the name for someone (including its original holder, from a new device) to claim.
 _Avoid_: login, sign-in, session
+
+**Claim Badge**:
+A short, one-way string derived from a Participant's Identity Token (a truncated hash), shown publicly next to their name so everyone can see when a name's underlying claim has changed hands. Reveals nothing that could reconstruct the Identity Token — seeing a Claim Badge grants no ability to act as that Participant.
+_Avoid_: token, fingerprint
 
 ### Topics & time
 
