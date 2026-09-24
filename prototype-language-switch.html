@@ -52,7 +52,8 @@
   .day-cell.past { color: #ccc9bd; cursor: default; }
   .day-cell.selected { background: var(--accent); color: #fff; font-weight: 700; }
   .day-cell.today { border: 1.5px solid var(--accent); }
-  .selected-summary { margin-top: 12px; font-size: 12px; }
+  .selected-summary { margin-top: 12px; font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .selected-summary .chip { margin: 0; }
   .none { color: var(--muted); font-style: italic; }
 </style>
 </head>
@@ -152,7 +153,7 @@ const STRINGS = {
     copyBtn: "Copy",
     nextHint: "Anyone with this link can join, pick a name, and start adding their availability and topic votes — that part's the next scenario.",
     topicRemovePlaceholder: "Topic name",
-    quickTopics: ["Dinner", "Coffee", "Online game", "Video call"],
+    quickTopics: ["Dinner", "Coffee", "Online game", "Video call", "Outing"],
     untitled: "Untitled gathering",
     note: "Layout check: English strings are usually longer than their Chinese equivalents — watch the button widths and the paragraph line breaks as you switch.",
   },
@@ -182,7 +183,7 @@ const STRINGS = {
     copyBtn: "复制",
     nextHint: "拿到这个链接的人都可以加入、选个名字,然后填自己的空闲时间和主题投票——那是下一个场景。",
     topicRemovePlaceholder: "主题名称",
-    quickTopics: ["吃饭", "喝咖啡", "线上游戏", "视频通话"],
+    quickTopics: ["吃饭", "喝咖啡", "线上游戏", "视频通话", "出去玩"],
     untitled: "未命名活动",
     note: "布局检查:中文通常比对应的英文短得多——切换时留意按钮宽度和这段说明文字的换行情况。",
   },
