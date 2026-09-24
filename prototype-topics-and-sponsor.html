@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PROTOTYPE — meetsync: propose Topics, declare Sponsor/Split (throwaway, not production)</title>
+<style>
+  :root { --accent:#2f6f4f; --accent-light:#eaf3ee; --bg:#faf9f6; --panel:#fff; --line:#e6e3da; --text:#26261f; --muted:#7a7a6e; --gold:#a3781f; --gold-bg:#fbf3e0; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px 20px 90px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .badge { display:inline-block; background:#fff3cd; color:#7a5c00; border:1px solid #e8d68a; border-radius:4px; padding:3px 9px; font-size:11px; font-weight:600; letter-spacing:.03em; margin-bottom:10px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  .acting-bar { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; margin-bottom: 18px; font-size: 13px; }
+  .acting-bar select { padding: 5px 8px; border-radius: 6px; border: 1px solid #cfcbbf; font-size: 13px; }
+  .new-topic-box { background: var(--panel); border: 1px dashed #cfcbbf; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
+  .new-topic-box .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { padding: 8px 10px; border: 1px solid #cfcbbf; border-radius: 6px; font-size: 13px; }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 13px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  button.ghost { background: none; border: none; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; padding: 0; }
+  .topic-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .topic-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .topic-title h2 { font-size: 17px; margin: 0; }
+  .topic-loc { font-size: 12px; color: var(--accent); }
+  .topic-meta { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { background: var(--accent-light); color: var(--accent); border-radius: 14px; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .chip.sponsor { background: var(--gold-bg); color: var(--gold); }
+  .none-yet { color: var(--muted); font-size: 12px; font-style: italic; }
+  .cost-line { font-size: 13px; margin-bottom: 12px; padding: 8px 12px; border-radius: 8px; background: #f6f5ef; }
+  .cost-line.split { color: var(--muted); }
+  .cost-line.sponsored { color: var(--gold); background: var(--gold-bg); }
+  .cost-line.conflict { color: #8a5a00; background: #fff3d6; }
+  .my-action { display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13px; }
+  select.rank { padding: 4px 6px; border-radius: 5px; border: 1px solid #cfcbbf; }
+  label.sponsor-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">PROTOTYPE — throwaway, not production</div>
+  <h1>Propose Topics · declare Sponsor or Split</h1>
+  <div class="intro">Stories 9-12, 41 (propose/browse Topics, optional Location) and 23-27 (Sponsor/Split). Any Participant can
+  propose a Topic; Sponsor is only available once you've marked yourself interested (it lives on your Topic Preference, per
+  the data model). Switch "Acting as" below to see the board from a different Participant's seat — everyone's chips are
+  always visible to everyone.</div>
+
+  <div class="acting-bar">
+    Acting as: <select id="acting-as" onchange="render()"></select>
+    <button class="secondary" onclick="addParticipant()">+ Add a participant</button>
+  </div>
+
+  <div class="new-topic-box">
+    <div class="row">
+      <input type="text" id="new-topic-name" placeholder="Propose a topic, e.g. Board games">
+      <input type="text" id="new-topic-loc" placeholder="Location (optional)">
+      <button onclick="uiProposeTopic()">Propose</button>
+    </div>
+  </div>
+
+  <div id="topics-list"></div>
+</div>
+
+<script>
+// =========================================================================
+// PURE MODULE
+// =========================================================================
+
+function freshState() {
+  return {
+    participants: [
+      { id: "alice", name: "Alice" },
+      { id: "bob", name: "Bob" },
+      { id: "carol", name: "Carol" },
+      { id: "dana", name: "Dana" },
+    ],
+    topics: [
+      { id: "dinner", name: "Dinner", location: "Riverside Noodle House", proposedBy: "alice" },
+      { id: "coffee", name: "Coffee", location: null, proposedBy: "carol" },
+    ],
+    // key: `${participantId}:${topicId}` -> { priorityRank, sponsor }
+    prefs: {
+      "alice:dinner": { priorityRank: 1, sponsor: false },
+      "bob:dinner": { priorityRank: 1, sponsor: true },
+      "carol:coffee": { priorityRank: 1, sponsor: false },
+    },
+  };
+}
+
+function prefKey(participantId, topicId) { return participantId + ":" + topicId; }
+
+function proposeTopic(state, name, location, proposedBy) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  state.topics.push({ id: "t_" + Date.now(), name: trimmed, location: location.trim() || null, proposedBy });
+}
+
+function setInterested(state, participantId, topicId, interested) {
+  const key = prefKey(participantId, topicId);
+  if (interested) {
+    if (!state.prefs[key]) {
+      const existingRanks = state.participants.map((p) => state.prefs[prefKey(p.id, topicId)]?.priorityRank).filter(Boolean);
+      state.prefs[key] = { priorityRank: 1, sponsor: false };
+    }
+  } else {
+    delete state.prefs[key];
+  }
+}
+function setRank(state, participantId, topicId, rank) {
+  const key = prefKey(participantId, topicId);
+  if (state.prefs[key]) state.prefs[key].priorityRank = Number(rank);
+}
+function setSponsor(state, participantId, topicId, sponsor) {
+  const key = prefKey(participantId, topicId);
+  if (state.prefs[key]) state.prefs[key].sponsor = sponsor; // sponsor requires an existing Topic Preference
+}
+
+function interestedIn(state, topicId) {
+  return state.participants
+    .map((p) => ({ p, pref: state.prefs[prefKey(p.id, topicId)] }))
+    .filter((x) => x.pref);
+}
+function sponsorsOf(state, topicId) {
+  return interestedIn(state, topicId).filter((x) => x.pref.sponsor).map((x) => x.p);
+}
+
+// =========================================================================
+// THROWAWAY PAGE SHELL
+// =========================================================================
+
+let state = freshState();
+let actingAs = "alice";
+
+function renderActingSelect() {
+  const el = document.getElementById("acting-as");
+  const keep = actingAs;
+  el.innerHTML = "";
+  state.participants.forEach((p) => {
+    const o = document.createElement("option");
+    o.value = p.id; o.textContent = p.name;
+    el.appendChild(o);
+  });
+  if (state.participants.some((p) => p.id === keep)) el.value = keep;
+  actingAs = el.value;
+}
+
+function costLine(state, topicId) {
+  const sponsors = sponsorsOf(state, topicId);
+  if (sponsors.length === 0) return { cls: "split", text: "Split — no one has offered to cover this yet." };
+  if (sponsors.length === 1) return { cls: "sponsored", text: `${sponsors[0].name} is covering this.` };
+  const names = sponsors.map((p) => p.name).join(" and ");
+  return { cls: "conflict", text: `${names} both offered to cover this — sort it out between you.` };
+}
+
+function render() {
+  renderActingSelect();
+  const list = document.getElementById("topics-list");
+  list.innerHTML = "";
+
+  state.topics.forEach((t) => {
+    const interested = interestedIn(state, t.id);
+    const myPref = state.prefs[prefKey(actingAs, t.id)];
+    const cost = costLine(state, t.id);
+    const proposer = state.participants.find((p) => p.id === t.proposedBy);
+
+    const card = document.createElement("div");
+    card.className = "topic-card";
+    card.innerHTML = `
+      <div class="topic-title">
+        <h2>${t.name}</h2>
+        ${t.location ? `<span class="topic-loc">📍 ${t.location}</span>` : ""}
+      </div>
+      <div class="topic-meta">Proposed by ${proposer ? proposer.name : "someone who left"}</div>
+
+      <div class="chip-row">
+        ${interested.length
+          ? interested.map((x) => `<span class="chip ${x.pref.sponsor ? "sponsor" : ""}">${x.p.name} · #${x.pref.priorityRank}${x.pref.sponsor ? " · 💰" : ""}</span>`).join("")
+          : `<span class="none-yet">Nobody interested yet.</span>`}
+      </div>
+
+      <div class="cost-line ${cost.cls}">${cost.text}</div>
+
+      <div class="my-action">
+        ${myPref
+          ? `<span>You (${state.participants.find(p=>p.id===actingAs).name}) rank this</span>
+             <select class="rank" onchange="uiSetRank('${t.id}', this.value)">
+               ${[1,2,3,4].map((r) => `<option value="${r}" ${myPref.priorityRank===r?"selected":""}>#${r}</option>`).join("")}
+             </select>
+             <label class="sponsor-toggle">
+               <input type="checkbox" ${myPref.sponsor ? "checked" : ""} onchange="uiSetSponsor('${t.id}', this.checked)">
+               I'll cover this
+             </label>
+             <button class="ghost" onclick="uiSetInterested('${t.id}', false)">Remove my interest</button>`
+          : `<button onclick="uiSetInterested('${t.id}', true)">I'm interested</button>`}
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function uiProposeTopic() {
+  const nameEl = document.getElementById("new-topic-name");
+  const locEl = document.getElementById("new-topic-loc");
+  proposeTopic(state, nameEl.value, locEl.value, actingAs);
+  nameEl.value = ""; locEl.value = "";
+  render();
+}
+function uiSetInterested(topicId, interested) { setInterested(state, actingAs, topicId, interested); render(); }
+function uiSetRank(topicId, rank) { setRank(state, actingAs, topicId, rank); render(); }
+function uiSetSponsor(topicId, sponsor) { setSponsor(state, actingAs, topicId, sponsor); render(); }
+function addParticipant() {
+  const name = prompt("New participant's name?");
+  if (!name || !name.trim()) return;
+  const id = "p_" + Date.now();
+  state.participants.push({ id, name: name.trim() });
+  actingAs = id;
+  render();
+}
+
+document.getElementById("acting-as").addEventListener("change", (e) => { actingAs = e.target.value; render(); });
+render();
+</script>
+</body>
+</html>
