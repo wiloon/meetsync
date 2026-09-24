@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PROTOTYPE — meetsync: English/Chinese language switch (throwaway, not production)</title>
+<style>
+  :root { --accent: #2f6f4f; --accent-light: #eaf3ee; --bg: #faf9f6; --panel: #ffffff; --line: #e6e3da; --text: #26261f; --muted: #7a7a6e; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; }
+  .badge { position: fixed; top: 10px; left: 10px; background: #fff3cd; color: #7a5c00; border: 1px solid #e8d68a; border-radius: 4px; padding: 3px 9px; font-size: 11px; font-weight: 600; letter-spacing: .03em; z-index: 10; }
+  .lang-switch { position: fixed; top: 10px; right: 10px; z-index: 10; background: #222; border-radius: 20px; padding: 4px; display: flex; gap: 2px; }
+  .lang-switch button { border: none; background: none; color: #aaa; padding: 6px 14px; border-radius: 16px; font-size: 13px; cursor: pointer; }
+  .lang-switch button.active { background: var(--accent); color: #fff; }
+  .stage { min-height: 100vh; display: none; align-items: center; justify-content: center; padding: 24px; }
+  .stage.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 40px; max-width: 460px; width: 100%; box-shadow: 0 2px 20px rgba(0,0,0,.04); }
+  .card.wide { max-width: 560px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 28px; line-height: 1.5; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; margin-top: 18px; }
+  label:first-of-type { margin-top: 0; }
+  input[type=text], input[type=date] { width: 100%; padding: 10px 12px; border: 1px solid #d8d4c8; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .date-row { display: flex; gap: 12px; }
+  .date-row > div { flex: 1; }
+  .btn { display: inline-block; background: var(--accent); color: #fff; border: none; border-radius: 9px; padding: 12px 22px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 28px; }
+  .btn.secondary { background: none; color: var(--accent); border: 1.5px solid var(--accent); width: auto; padding: 8px 14px; font-size: 13px; margin-top: 0; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
+  .chip { background: var(--accent-light); color: var(--accent); border: 1px solid #cfe4d7; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .topic-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .topic-row input { flex: 1; }
+  .remove { background: none; border: none; color: #a44; font-size: 18px; cursor: pointer; padding: 0 4px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .link-box { display: flex; gap: 8px; margin-top: 8px; }
+  .link-box input { background: #f4f3ee; color: var(--muted); }
+  .success-icon { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-light); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 18px; }
+  .center { text-align: center; }
+  .step-nav { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; border-radius: 20px; padding: 6px 16px; font-size: 12px; display: flex; gap: 10px; align-items: center; }
+  .step-nav button { background: none; border: none; color: #fff; cursor: pointer; font-size: 13px; }
+  .note-box { position: fixed; bottom: 54px; left: 50%; transform: translateX(-50%); background: #fffaf0; border: 1px solid #e8d68a; border-radius: 8px; padding: 8px 14px; font-size: 12px; color: #7a5c00; max-width: 460px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="badge">PROTOTYPE — throwaway, not production</div>
+<div class="lang-switch">
+  <button id="btn-en" onclick="setLang('en')">EN</button>
+  <button id="btn-zh" onclick="setLang('zh')">中文</button>
+</div>
+
+<!-- Reuses the Create Gathering flow as the test bed: real buttons, labels, chips, and a
+     multi-line paragraph, so we can see whether Chinese text actually breaks this layout,
+     not just single words. -->
+
+<div class="stage active" id="stage-landing">
+  <div class="card center">
+    <h1>meetsync</h1>
+    <p class="sub" id="t-tagline"></p>
+    <button class="btn" onclick="goTo('create')" id="t-createBtn"></button>
+  </div>
+</div>
+
+<div class="stage" id="stage-create">
+  <div class="card wide">
+    <h1 id="t-createTitle"></h1>
+    <p class="sub" id="t-createSub"></p>
+
+    <label id="t-nameLabel"></label>
+    <input type="text" id="g-title">
+
+    <label id="t-dateRangeLabel"></label>
+    <div class="date-row">
+      <div>
+        <span class="hint" id="t-fromLabel" style="margin:0 0 4px;display:block;"></span>
+        <input type="date" id="g-start">
+      </div>
+      <div>
+        <span class="hint" id="t-untilLabel" style="margin:0 0 4px;display:block;"></span>
+        <input type="date" id="g-end">
+      </div>
+    </div>
+
+    <label><span id="t-topicsLabel"></span> <span style="font-weight:400;color:var(--muted);" id="t-topicsOptional"></span></label>
+    <div class="chips" id="topic-chips"></div>
+    <div id="topic-rows"></div>
+    <button class="btn secondary" onclick="addTopicRow('')" id="t-addCustomTopic" style="margin-top:6px;"></button>
+
+    <button class="btn" onclick="createGathering()" id="t-createGatheringBtn"></button>
+  </div>
+</div>
+
+<div class="stage" id="stage-done">
+  <div class="card center">
+    <div class="success-icon">✓</div>
+    <h1 id="done-title"></h1>
+    <p class="sub" id="done-sub"></p>
+    <label style="text-align:left;" id="t-shareLinkLabel"></label>
+    <div class="link-box">
+      <input type="text" id="link-output" readonly>
+      <button class="btn secondary" onclick="copyLink()" id="t-copyBtn"></button>
+    </div>
+    <p class="hint" style="text-align:left;" id="t-nextHint"></p>
+  </div>
+</div>
+
+<div class="step-nav">
+  <button onclick="goTo('landing')">1</button> ·
+  <button onclick="goTo('create')">2</button> ·
+  <button onclick="goTo('done')">3</button>
+</div>
+<div class="note-box" id="layout-note"></div>
+
+<script>
+const STRINGS = {
+  en: {
+    tagline: "Agree on a time, a topic, and who's covering the cost — no login needed.",
+    createBtn: "+ Create a Gathering",
+    createTitle: "Create a Gathering",
+    createSub: "Set a date range and, if you like, a few topics to get people started. Anyone can add more topics later.",
+    nameLabel: "Gathering name",
+    namePlaceholder: "e.g. Catching up with the old team",
+    dateRangeLabel: "Date range",
+    fromLabel: "From",
+    untilLabel: "Until",
+    topicsLabel: "Topics",
+    topicsOptional: "(optional — add now or later)",
+    addCustomTopic: "+ Add a custom topic",
+    createGatheringBtn: "Create Gathering",
+    doneTitle: (title) => `"${title}" is ready`,
+    doneSubWith: (n, list) => `Started with ${n} topic${n > 1 ? "s" : ""}: ${list}.`,
+    doneSubNone: "No topics yet — participants can propose the first one.",
+    shareLinkLabel: "Share this link",
+    copyBtn: "Copy",
+    nextHint: "Anyone with this link can join, pick a name, and start adding their availability and topic votes — that part's the next scenario.",
+    topicRemovePlaceholder: "Topic name",
+    quickTopics: ["Dinner", "Coffee", "Online game", "Video call"],
+    untitled: "Untitled gathering",
+    note: "Layout check: English strings are usually longer than their Chinese equivalents — watch the button widths and the paragraph line breaks as you switch.",
+  },
+  zh: {
+    tagline: "无需登录,一起定下时间、主题和谁请客。",
+    createBtn: "+ 创建活动",
+    createTitle: "创建活动",
+    createSub: "设置一个时间范围,也可以顺便加几个主题让大家有个方向,之后谁都可以再加主题。",
+    nameLabel: "活动名称",
+    namePlaceholder: "例如:老同事聚聚",
+    dateRangeLabel: "时间范围",
+    fromLabel: "从",
+    untilLabel: "到",
+    topicsLabel: "主题",
+    topicsOptional: "(可选——现在加或以后加都行)",
+    addCustomTopic: "+ 添加自定义主题",
+    createGatheringBtn: "创建活动",
+    doneTitle: (title) => `"${title}" 已创建`,
+    doneSubWith: (n, list) => `已包含 ${n} 个主题:${list}。`,
+    doneSubNone: "还没有主题——参与者可以提出第一个。",
+    shareLinkLabel: "分享这个链接",
+    copyBtn: "复制",
+    nextHint: "拿到这个链接的人都可以加入、选个名字,然后填自己的空闲时间和主题投票——那是下一个场景。",
+    topicRemovePlaceholder: "主题名称",
+    quickTopics: ["吃饭", "喝咖啡", "线上游戏", "视频通话"],
+    untitled: "未命名活动",
+    note: "布局检查:中文通常比对应的英文短得多——切换时留意按钮宽度和这段说明文字的换行情况。",
+  },
+};
+
+let lang = "en";
+let topics = [];
+
+function t() { return STRINGS[lang]; }
+
+function setLang(l) {
+  lang = l;
+  document.documentElement.lang = l === "zh" ? "zh-CN" : "en";
+  document.getElementById("btn-en").classList.toggle("active", l === "en");
+  document.getElementById("btn-zh").classList.toggle("active", l === "zh");
+  renderStrings();
+}
+
+function renderStrings() {
+  const s = t();
+  document.getElementById("t-tagline").textContent = s.tagline;
+  document.getElementById("t-createBtn").textContent = s.createBtn;
+  document.getElementById("t-createTitle").textContent = s.createTitle;
+  document.getElementById("t-createSub").textContent = s.createSub;
+  document.getElementById("t-nameLabel").textContent = s.nameLabel;
+  document.getElementById("g-title").placeholder = s.namePlaceholder;
+  document.getElementById("t-dateRangeLabel").textContent = s.dateRangeLabel;
+  document.getElementById("t-fromLabel").textContent = s.fromLabel;
+  document.getElementById("t-untilLabel").textContent = s.untilLabel;
+  document.getElementById("t-topicsLabel").textContent = s.topicsLabel;
+  document.getElementById("t-topicsOptional").textContent = s.topicsOptional;
+  document.getElementById("t-addCustomTopic").textContent = s.addCustomTopic;
+  document.getElementById("t-createGatheringBtn").textContent = s.createGatheringBtn;
+  document.getElementById("t-shareLinkLabel").textContent = s.shareLinkLabel;
+  document.getElementById("t-copyBtn").textContent = s.copyBtn;
+  document.getElementById("t-nextHint").textContent = s.nextHint;
+  document.getElementById("layout-note").textContent = s.note;
+  renderChips();
+  renderTopicRows();
+}
+
+function goTo(name) {
+  document.querySelectorAll(".stage").forEach(s => s.classList.remove("active"));
+  document.getElementById("stage-" + name).classList.add("active");
+}
+
+function renderChips() {
+  const box = document.getElementById("topic-chips");
+  box.innerHTML = "";
+  t().quickTopics.filter(name => !topics.includes(name)).forEach(name => {
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.textContent = "+ " + name;
+    chip.onclick = () => addTopicRow(name);
+    box.appendChild(chip);
+  });
+}
+
+function addTopicRow(prefill) {
+  topics.push(prefill || "");
+  renderChips();
+  renderTopicRows();
+}
+
+function renderTopicRows() {
+  const box = document.getElementById("topic-rows");
+  box.innerHTML = "";
+  topics.forEach((val, i) => {
+    const row = document.createElement("div");
+    row.className = "topic-row";
+    row.innerHTML = `<input type="text" value="${val.replace(/"/g,'&quot;')}" placeholder="${t().topicRemovePlaceholder}" oninput="topics[${i}]=this.value">
+      <button class="remove" onclick="removeTopicRow(${i})">×</button>`;
+    box.appendChild(row);
+  });
+}
+
+function removeTopicRow(i) { topics.splice(i, 1); renderChips(); renderTopicRows(); }
+
+function createGathering() {
+  const s = t();
+  const title = document.getElementById("g-title").value.trim() || s.untitled;
+  const link = `https://meetsync.app/g/${Math.random().toString(36).slice(2,8)}`;
+  document.getElementById("link-output").value = link;
+  document.getElementById("done-title").textContent = s.doneTitle(title);
+  const named = topics.filter(x => x.trim());
+  document.getElementById("done-sub").textContent = named.length ? s.doneSubWith(named.length, named.join("、")) : s.doneSubNone;
+  goTo("done");
+}
+function copyLink() { const el = document.getElementById("link-output"); el.select(); document.execCommand("copy"); }
+
+setLang("en");
+</script>
+</body>
+</html>
