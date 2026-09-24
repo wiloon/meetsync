@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PROTOTYPE — meetsync: everyone's answers, at a glance (throwaway, not production)</title>
+<style>
+  :root { --accent:#2f6f4f; --bg:#faf9f6; --panel:#fff; --line:#e6e3da; --text:#26261f; --muted:#7a7a6e; --yes:#2f6f4f; --yes-bg:#eaf6ee; --no:#a5423a; --no-bg:#fbeceb; --na:#b9b6a8; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px 20px 90px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .badge { display:inline-block; background:#fff3cd; color:#7a5c00; border:1px solid #e8d68a; border-radius:4px; padding:3px 9px; font-size:11px; font-weight:600; letter-spacing:.03em; margin-bottom:10px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .intro code { background: #f0efe8; padding: 1px 5px; border-radius: 4px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 14px; }
+  table.grid { border-collapse: collapse; width: 100%; }
+  table.grid th, table.grid td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: center; font-size: 13px; }
+  table.grid th.name-col, table.grid td.name-col { text-align: left; font-weight: 600; width: 160px; }
+  table.grid th { font-weight: 600; vertical-align: bottom; }
+  .topic-head { display: flex; flex-direction: column; gap: 2px; }
+  .topic-head .topic-name { font-size: 14px; }
+  .topic-head .topic-window { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .topic-head .topic-loc { font-size: 11px; color: var(--accent); font-weight: 400; }
+  .cell { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; font-weight: 700; }
+  .cell.yes { background: var(--yes-bg); color: var(--yes); }
+  .cell.no { background: var(--no-bg); color: var(--no); }
+  .cell.na { background: #f2f1ea; color: var(--na); }
+  .legend { display: flex; gap: 18px; font-size: 12px; color: var(--muted); margin-top: 14px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .no-plan-list { font-size: 13px; color: var(--muted); }
+  .no-plan-list li { margin-bottom: 4px; }
+  .row-controls { display:flex; gap:8px; margin-bottom:14px; flex-wrap: wrap; }
+  button { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 7px 13px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">PROTOTYPE — throwaway, not production</div>
+  <h1>Everyone's answers, at a glance</h1>
+  <div class="intro">
+    <b>Question this demo answers:</b> after comparing against Rallly's participant × time-slot grid — the thing that most
+    directly answers the original ask ("let everyone know who's online and what they decided") — what should meetsync's
+    version look like, given our columns are <code>Topic @ leading Plan window</code> rather than fixed organizer-picked
+    slots? <b>✓</b> = interested and free for that whole window (attending). <b>✗</b> = interested but busy at some point in
+    it. <b>—</b> = hasn't expressed interest in that Topic at all.
+  </div>
+
+  <section>
+    <h2>Gathering: "Catching up with the old team" — Fri 9/25 to Sun 9/27</h2>
+    <div class="row-controls">
+      <button onclick="toggleFinnGaming()">Toggle: Finn joins Online Game</button>
+      <button class="secondary" onclick="toggleDanaBedtime()">Toggle: Dana's kid bedtime Topic Busy Block</button>
+      <button class="secondary" onclick="resetDemo()">Reset</button>
+    </div>
+    <table class="grid" id="grid"></table>
+    <div class="legend">
+      <span><span class="cell yes" style="width:18px;height:18px;font-size:11px;">✓</span> Attending this window</span>
+      <span><span class="cell no" style="width:18px;height:18px;font-size:11px;">✗</span> Interested, but busy then</span>
+      <span><span class="cell na" style="width:18px;height:18px;font-size:11px;">—</span> Not interested in this Topic</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Topics with no Plan yet</h2>
+    <ul class="no-plan-list" id="no-plan-list"></ul>
+  </section>
+</div>
+
+<script>
+// =========================================================================
+// PURE MODULE — same MatchingEngine shape as the earlier prototype,
+// updated to 60-minute granularity per the spec change, plus Topic Location.
+// =========================================================================
+
+const GRANULARITY_MIN = 60;
+const SLOTS_PER_DAY = (24 * 60) / GRANULARITY_MIN; // 24
+const DAYS = 3;
+const TOTAL_SLOTS = DAYS * SLOTS_PER_DAY;
+const MIN_ATTENDEES = 2;
+const TIE_MARGIN = 0.10;
+const DAY_LABELS = ["Fri 9/25", "Sat 9/26", "Sun 9/27"];
+
+function slotRange(iv) {
+  const base = iv.day * SLOTS_PER_DAY;
+  return [base + iv.start, base + iv.end];
+}
+function busyArrayFor(participant, topicId) {
+  const busy = new Array(TOTAL_SLOTS).fill(false);
+  const mark = (iv) => { const [s, e] = slotRange(iv); for (let i = s; i < e && i < TOTAL_SLOTS; i++) busy[Math.max(i,0)] = true; };
+  participant.busyBlocks.forEach(mark);
+  const pref = participant.topicPrefs[topicId];
+  if (pref) pref.topicBusyBlocks.forEach(mark);
+  return busy;
+}
+function computeTopicPlan(topic, participants) {
+  const interested = participants.filter((p) => p.topicPrefs[topic.id]);
+  if (interested.length === 0) return { topicId: topic.id, windows: [], reason: "Nobody has expressed interest yet." };
+  const freeMatrix = interested.map((p) => busyArrayFor(p, topic.id).map((b) => !b));
+  const sig = new Array(TOTAL_SLOTS);
+  for (let s = 0; s < TOTAL_SLOTS; s++) {
+    let mask = 0;
+    for (let i = 0; i < interested.length; i++) if (freeMatrix[i][s]) mask |= (1 << i);
+    sig[s] = mask;
+  }
+  const runs = [];
+  let runStart = 0;
+  for (let s = 1; s <= TOTAL_SLOTS; s++) {
+    if (s === TOTAL_SLOTS || sig[s] !== sig[runStart]) { runs.push({ start: runStart, end: s, mask: sig[runStart] }); runStart = s; }
+  }
+  const scoredRuns = runs.map((r) => {
+    const attendees = interested.filter((p, i) => (r.mask & (1 << i)) !== 0);
+    const score = attendees.reduce((sum, p) => sum + 1 / p.topicPrefs[topic.id].priorityRank, 0);
+    return { ...r, attendees, score, count: attendees.length };
+  });
+  const eligible = scoredRuns.filter((r) => r.count >= MIN_ATTENDEES);
+  if (eligible.length === 0) {
+    const best = scoredRuns.reduce((a, b) => (b.count > a.count ? b : a), { count: 0, attendees: [] });
+    const names = best.attendees.map((p) => p.name).join(", ") || "nobody";
+    return { topicId: topic.id, windows: [], reason: `Needs ${MIN_ATTENDEES}+ people free at once; best right now is ${best.count} (${names}).` };
+  }
+  const topScore = Math.max(...eligible.map((r) => r.score));
+  const windows = eligible.filter((r) => r.score >= topScore * (1 - TIE_MARGIN)).sort((a, b) => b.score - a.score)
+    .map((r) => ({ day: Math.floor(r.start / SLOTS_PER_DAY), startHour: r.start % SLOTS_PER_DAY, endHour: (r.end % SLOTS_PER_DAY === 0 ? SLOTS_PER_DAY : r.end % SLOTS_PER_DAY), score: r.score, attendeeIds: r.attendees.map(p=>p.id) }));
+  return { topicId: topic.id, windows, reason: null };
+}
+
+// Per-participant status for a specific leading window: "yes" | "no" | "na"
+function statusFor(participant, topic, window) {
+  if (!participant.topicPrefs[topic.id]) return "na";
+  if (!window) return "no"; // interested, but no plan formed at all yet
+  return window.attendeeIds.includes(participant.id) ? "yes" : "no";
+}
+
+// =========================================================================
+// THROWAWAY PAGE SHELL — seeded scenario, a couple of toggles to see it move.
+// =========================================================================
+
+function fmtHour(h) { return String(h).padStart(2, "0") + ":00"; }
+function P(id, name, busyBlocks) { return { id, name, busyBlocks, topicPrefs: {} }; }
+function pref(rank, topicBusyBlocks) { return { priorityRank: rank, topicBusyBlocks: topicBusyBlocks || [] }; }
+
+let topics, participants;
+
+function seed() {
+  topics = [
+    { id: "dinner", name: "Dinner", location: "Riverside Noodle House" },
+    { id: "game", name: "Online game", location: null },
+    { id: "coffee", name: "Coffee", location: "Blue Bottle on 5th" },
+  ];
+  participants = [
+    P("alice", "Alice", []),
+    P("bob", "Bob", [{ day: 1, start: 0, end: 17 }]),
+    P("carol", "Carol", []),
+    P("dana", "Dana", []),
+    P("finn", "Finn", []),
+  ];
+  participants[0].topicPrefs["dinner"] = pref(1);
+  participants[1].topicPrefs["dinner"] = pref(1);
+  participants[2].topicPrefs["dinner"] = pref(1);
+  participants[3].topicPrefs["dinner"] = pref(1);
+
+  participants[2].topicPrefs["game"] = pref(2);
+  participants[3].topicPrefs["game"] = pref(1);
+  // Finn's Online Game interest is toggled on/off by the demo button.
+
+  participants[0].topicPrefs["coffee"] = pref(3); // only Alice cares — under the minimum, "no plan yet"
+}
+seed();
+
+function toggleFinnGaming() {
+  const finn = participants.find((p) => p.name === "Finn");
+  if (finn.topicPrefs["game"]) delete finn.topicPrefs["game"];
+  else finn.topicPrefs["game"] = pref(2);
+  render();
+}
+function toggleDanaBedtime() {
+  const dana = participants.find((p) => p.name === "Dana");
+  if (!dana.topicPrefs["game"]) dana.topicPrefs["game"] = pref(1);
+  const already = dana.topicPrefs["game"].topicBusyBlocks.length > 0;
+  dana.topicPrefs["game"].topicBusyBlocks = already ? [] : [{ day: 0, start: 20, end: 24 }, { day: 1, start: 20, end: 24 }, { day: 2, start: 20, end: 24 }];
+  render();
+}
+function resetDemo() { seed(); render(); }
+
+function render() {
+  const plans = topics.map((t) => computeTopicPlan(t, participants));
+  const table = document.getElementById("grid");
+  table.innerHTML = "";
+
+  const thead = document.createElement("tr");
+  thead.innerHTML = `<th class="name-col">Participant</th>` + topics.map((t, i) => {
+    const plan = plans[i];
+    const lead = plan.windows[0];
+    const windowText = lead ? `${DAY_LABELS[lead.day]} ${fmtHour(lead.startHour)}–${fmtHour(lead.endHour)}` : "No plan yet";
+    return `<th><div class="topic-head">
+      <span class="topic-name">${t.name}</span>
+      <span class="topic-window">${windowText}</span>
+      ${t.location ? `<span class="topic-loc">📍 ${t.location}</span>` : ""}
+    </div></th>`;
+  }).join("");
+  table.appendChild(thead);
+
+  participants.forEach((p) => {
+    const tr = document.createElement("tr");
+    let html = `<td class="name-col">${p.name}</td>`;
+    topics.forEach((t, i) => {
+      const lead = plans[i].windows[0];
+      const status = statusFor(p, t, lead);
+      const symbol = status === "yes" ? "✓" : status === "no" ? "✗" : "—";
+      html += `<td><span class="cell ${status}">${symbol}</span></td>`;
+    });
+    tr.innerHTML = html;
+    table.appendChild(tr);
+  });
+
+  const noPlanEl = document.getElementById("no-plan-list");
+  const noPlanTopics = topics.map((t, i) => ({ t, plan: plans[i] })).filter((x) => x.plan.windows.length === 0);
+  noPlanEl.innerHTML = noPlanTopics.length
+    ? noPlanTopics.map((x) => `<li><b>${x.t.name}</b> — ${x.plan.reason}</li>`).join("")
+    : `<li>Every Topic with interest currently has a Plan.</li>`;
+}
+
+render();
+</script>
+</body>
+</html>
