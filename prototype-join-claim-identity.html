@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PROTOTYPE — meetsync: Join a Gathering, claim a name (throwaway, not production)</title>
+<style>
+  :root { --accent:#2f6f4f; --bg:#faf9f6; --panel:#fff; --line:#e6e3da; --text:#26261f; --muted:#7a7a6e; --bad:#a5423a; --bad-bg:#fbeceb; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px 20px 90px; }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  .badge { display:inline-block; background:#fff3cd; color:#7a5c00; border:1px solid #e8d68a; border-radius:4px; padding:3px 9px; font-size:11px; font-weight:600; letter-spacing:.03em; margin-bottom:10px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .intro b { color: var(--text); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin-bottom: 18px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; font-size: 13px; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scenario-desc { background: #f6f5ef; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+  .step-list { display: flex; flex-direction: column; gap: 6px; }
+  .step-list button { align-self: flex-start; background: var(--accent); color:#fff; border:none; border-radius:6px; padding:7px 13px; font-size:13px; cursor:pointer; }
+  .step-done { color: var(--muted); font-size: 13px; padding: 4px 0; }
+  .step-done::before { content: "✓ "; color: var(--accent); }
+  .device-card { border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .device-card.recognized { border-color: var(--accent); background: #f3f9f5; }
+  input[type=text] { padding: 8px 10px; border: 1px solid #cfcbbf; border-radius: 6px; font-size: 14px; width: 220px; }
+  button.primary { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--accent); border: 1px solid var(--accent); border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+  button.danger { background: #fff; color: var(--bad); border: 1px solid var(--bad); border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+  .error-box { background: var(--bad-bg); color: var(--bad); border-radius: 6px; padding: 8px 12px; font-size: 13px; margin-top: 10px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+  .status-active { color: var(--accent); font-weight: 600; }
+  .status-left { color: var(--muted); }
+  .token { font-family: monospace; font-size: 11px; color: var(--muted); }
+  .open-q { border: 1px dashed #d8b25a; background: #fffaf0; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">PROTOTYPE — throwaway, not production</div>
+  <h1>Join a Gathering, claim a name</h1>
+  <div class="intro">
+    <b>Question this demo answers:</b> stories 3–6 from issue #1 — asking for a name before anything else, rejecting a name
+    someone else is actively holding, recognizing a returning Participant on the same browser without re-asking, and treating
+    a new browser (or cleared storage) as a new Participant if the old name is still active elsewhere. "My device" below uses
+    real <code>localStorage</code>, so an actual page reload (F5) genuinely tests the "same browser" case — everything else
+    (other participants, a new browser) is simulated with buttons since one browser tab can't literally be two devices.
+  </div>
+
+  <section>
+    <h2>Guided walkthroughs</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="scenario-desc" id="scenario-desc"></div>
+    <div class="step-list" id="scenario-steps"></div>
+  </section>
+
+  <section>
+    <h2>My device</h2>
+    <div id="my-device"></div>
+  </section>
+
+  <section>
+    <h2>Everyone in this Gathering (server-side view)</h2>
+    <div class="row">
+      <input type="text" id="seed-name" placeholder="Simulate someone else joining, e.g. Alice">
+      <button class="secondary" onclick="uiSeed()">Join from their own device</button>
+      <button class="danger" onclick="uiResetAll()">Reset entire demo</button>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Status</th><th>Token</th></tr></thead>
+      <tbody id="participants-body"></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+// =========================================================================
+// PURE MODULE — lifts into the real Identity Claim service.
+// =========================================================================
+
+function freshServer() { return { participants: [] }; }
+
+function randomToken() { return "tok_" + Math.random().toString(36).slice(2, 10); }
+
+// Attempt to join with `name`, given whatever token (if any) this device already holds.
+// Returns a discriminated result; never mutates on failure.
+function attemptJoin(server, name, existingToken) {
+  const byToken = existingToken && server.participants.find((p) => p.token === existingToken && p.active);
+  if (byToken) {
+    return { kind: "recognized", participant: byToken };
+  }
+  const trimmed = (name || "").trim();
+  if (!trimmed) return { kind: "error", message: "Enter a name to join." };
+
+  const collision = server.participants.find(
+    (p) => p.active && p.name.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (collision) {
+    return { kind: "error", message: `"${trimmed}" is already claimed by someone active right now — pick another name.` };
+  }
+
+  const participant = { id: "p_" + Date.now() + Math.random(), name: trimmed, token: randomToken(), active: true };
+  server.participants.push(participant);
+  return { kind: "joined", participant };
+}
+
+function leaveGathering(server, token) {
+  const p = server.participants.find((x) => x.token === token);
+  if (p) p.active = false;
+}
+
+// =========================================================================
+// THROWAWAY PAGE SHELL
+// =========================================================================
+
+const SERVER_KEY = "meetsync_demo_server";
+const MY_TOKEN_KEY = "meetsync_demo_mytoken";
+
+function loadServer() {
+  try { return JSON.parse(localStorage.getItem(SERVER_KEY)) || freshServer(); }
+  catch { return freshServer(); }
+}
+function saveServer(s) { localStorage.setItem(SERVER_KEY, JSON.stringify(s)); }
+function myToken() { return localStorage.getItem(MY_TOKEN_KEY) || null; }
+function setMyToken(t) { if (t) localStorage.setItem(MY_TOKEN_KEY, t); else localStorage.removeItem(MY_TOKEN_KEY); }
+
+let server = loadServer();
+let lastError = null;
+
+function render() {
+  renderDevice();
+  renderParticipants();
+}
+
+function renderDevice() {
+  const el = document.getElementById("my-device");
+  const result = attemptJoin(server, "", myToken()); // recognition check only, no name typed
+  if (result.kind === "recognized") {
+    el.innerHTML = `<div class="device-card recognized">
+      <p>Welcome back, <b>${result.participant.name}</b> — recognized from this browser's stored token, no re-entry needed.</p>
+      <div class="token">token: ${result.participant.token}</div>
+      <div class="row" style="margin-top:12px;">
+        <button class="danger" onclick="uiLeave()">Leave Gathering (frees my name)</button>
+        <button class="secondary" onclick="uiForgetBrowser()">Simulate: new browser / cleared storage</button>
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="device-card">
+      <p>Choose a display name to join.</p>
+      <div class="row">
+        <input type="text" id="join-name" placeholder="Your name">
+        <button class="primary" onclick="uiJoin()">Join</button>
+      </div>
+      ${lastError ? `<div class="error-box">${lastError}</div>` : ""}
+    </div>`;
+  }
+}
+
+function renderParticipants() {
+  const tbody = document.getElementById("participants-body");
+  tbody.innerHTML = "";
+  if (server.participants.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3" style="color:var(--muted);font-style:italic;">Nobody yet.</td></tr>`;
+    return;
+  }
+  server.participants.forEach((p) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.name}${p.token === myToken() ? " (this device)" : ""}</td>
+      <td class="${p.active ? "status-active" : "status-left"}">${p.active ? "Active" : "Left"}</td>
+      <td class="token">${p.token}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function uiJoin() {
+  const input = document.getElementById("join-name");
+  const result = attemptJoin(server, input.value, myToken());
+  if (result.kind === "error") {
+    lastError = result.message;
+  } else {
+    lastError = null;
+    setMyToken(result.participant.token);
+    saveServer(server);
+  }
+  render();
+}
+
+function uiLeave() {
+  leaveGathering(server, myToken());
+  saveServer(server);
+  setMyToken(null);
+  lastError = null;
+  render();
+}
+
+function uiForgetBrowser() {
+  // Only forgets THIS device's token. The server-side record (and its "active" status) is untouched —
+  // that's the point: it simulates a different browser, not the same one continuing.
+  setMyToken(null);
+  lastError = null;
+  render();
+}
+
+function uiSeed() {
+  const input = document.getElementById("seed-name");
+  const result = attemptJoin(server, input.value, null); // always a fresh "device"
+  if (result.kind === "joined") {
+    saveServer(server);
+    input.value = "";
+  }
+  render();
+}
+
+function uiResetAll() {
+  server = freshServer();
+  saveServer(server);
+  setMyToken(null);
+  lastError = null;
+  render();
+}
+
+// ---- guided walkthroughs ----
+const scenarios = [
+  {
+    name: "First time joining",
+    desc: "Story 3: opening the link asks for a name before anything else.",
+    steps: [
+      { label: "Reset the demo to a clean state", run: () => uiResetAllSilent() },
+      { label: "Type 'Alice' and join", run: () => simulateJoin("Alice") },
+    ],
+  },
+  {
+    name: "Name already taken",
+    desc: "Story 4: someone else is already active under that name — rejected, not silently merged.",
+    steps: [
+      { label: "Reset the demo", run: () => uiResetAllSilent() },
+      { label: "Bob joins from his own device", run: () => { const r = attemptJoin(server, "Bob", null); saveServer(server); } },
+      { label: "Now try to join as 'Bob' yourself", run: () => simulateJoin("Bob") },
+    ],
+  },
+  {
+    name: "Same browser, reopened",
+    desc: "Story 5: after joining, do a REAL page reload (F5) — you'll come back as the same person, no name prompt. (Steps below just join first; reload manually to see it.)",
+    steps: [
+      { label: "Reset the demo", run: () => uiResetAllSilent() },
+      { label: "Join as 'Carol'", run: () => simulateJoin("Carol") },
+      { label: "Now press F5 / reload the page for real", run: () => {} },
+    ],
+  },
+  {
+    name: "New browser, old name still active",
+    desc: "Story 6: pretend you switched devices. Your old name is still active elsewhere, so re-claiming it should fail — you need a different name.",
+    steps: [
+      { label: "Reset the demo", run: () => uiResetAllSilent() },
+      { label: "Join as 'Dana'", run: () => simulateJoin("Dana") },
+      { label: "Simulate switching to a new browser", run: () => uiForgetBrowser() },
+      { label: "Try to join as 'Dana' again (should fail)", run: () => simulateJoin("Dana") },
+      { label: "Join as 'Dana (phone)' instead (should succeed)", run: () => simulateJoin("Dana (phone)") },
+    ],
+  },
+];
+
+function uiResetAllSilent() { server = freshServer(); saveServer(server); setMyToken(null); lastError = null; }
+function simulateJoin(name) {
+  const result = attemptJoin(server, name, myToken());
+  if (result.kind === "error") lastError = result.message;
+  else { lastError = null; setMyToken(result.participant.token); saveServer(server); }
+}
+
+let activeScenario = 0;
+let stepsDone = 0;
+
+function renderTabs() {
+  const tabsEl = document.getElementById("tabs");
+  tabsEl.innerHTML = "";
+  scenarios.forEach((s, i) => {
+    const b = document.createElement("div");
+    b.className = "tab" + (i === activeScenario ? " active" : "");
+    b.textContent = s.name;
+    b.onclick = () => { activeScenario = i; stepsDone = 0; renderScenario(); };
+    tabsEl.appendChild(b);
+  });
+}
+
+function renderScenario() {
+  const s = scenarios[activeScenario];
+  document.getElementById("scenario-desc").textContent = s.desc;
+  const stepsEl = document.getElementById("scenario-steps");
+  stepsEl.innerHTML = "";
+  s.steps.forEach((step, i) => {
+    if (i < stepsDone) {
+      const done = document.createElement("div");
+      done.className = "step-done";
+      done.textContent = step.label;
+      stepsEl.appendChild(done);
+    } else if (i === stepsDone) {
+      const btn = document.createElement("button");
+      btn.textContent = "▶ " + step.label;
+      btn.onclick = () => { step.run(); stepsDone++; render(); renderScenario(); };
+      stepsEl.appendChild(btn);
+    }
+  });
+  if (stepsDone === s.steps.length) {
+    const done = document.createElement("div");
+    done.className = "step-done";
+    done.textContent = "Scenario complete — check state above.";
+    stepsEl.appendChild(done);
+  }
+}
+
+renderTabs();
+renderScenario();
+render();
+</script>
+</body>
+</html>
