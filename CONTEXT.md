@@ -44,6 +44,10 @@ _Avoid_: vote, interest, rating
 A Busy Block scoped to one Topic rather than the whole Gathering: time the Participant can't give to that Topic specifically, even though they're otherwise free then. Narrows only that Topic's effective time, leaving the Participant's Free Time and other Topics untouched.
 _Avoid_: time preference, restriction, exception
 
+**Topic Location**:
+An optional place suggestion attached to a Topic (a specific café, "at Sam's place", "online"). Free text, not voted on or scored — a shared note so a Topic's Plan carries a place alongside its time and attendees.
+_Avoid_: venue, address
+
 ### Access & billing
 
 **Organizer Account**:
