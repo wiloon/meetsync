@@ -1,6 +1,6 @@
 # Link-based identity, no accounts
 
-A Gathering is reached only through its link; a Participant claims a display name on arrival, and a returning Participant reclaims it via a browser-local token (see Identity Claim in `CONTEXT.md`). There is no username/password or third-party login anywhere in the system.
+A Gathering is reached only through its link; a Participant claims a display name on arrival, and a returning Participant reclaims it via a browser-local token (see Identity Claim in `GLOSSARY.md`). There is no username/password or third-party login anywhere in the system.
 
 ## Why
 
