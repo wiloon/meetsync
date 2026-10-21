@@ -8,7 +8,7 @@
 
 开始实现 Release 1(工单 [#2](https://github.com/wiloon/meetsync/issues/2)–[#10](https://github.com/wiloon/meetsync/issues/10))。
 
-- 术语表:[`CONTEXT.md`](CONTEXT.md)
+- 术语表:[`GLOSSARY.md`](GLOSSARY.md)
 - 架构决策:[`docs/adr/`](docs/adr/)(0001–0013)
 - Phase 1 需求:[issue #1](https://github.com/wiloon/meetsync/issues/1)(真源;仓库里 [`docs/spec-phase1.md`](docs/spec-phase1.md) 只是指针)
 

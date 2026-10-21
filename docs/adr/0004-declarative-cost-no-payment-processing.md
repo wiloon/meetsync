@@ -1,6 +1,6 @@
 # Cost is a declaration, never a calculation
 
-A Topic's Sponsor field is a plain boolean-ish choice per Participant: "I'll cover this" or nothing (which means Split — see `CONTEXT.md`). meetsync does not calculate who owes what, does not integrate a payment provider, and does not track settlement.
+A Topic's Sponsor field is a plain boolean-ish choice per Participant: "I'll cover this" or nothing (which means Split — see `GLOSSARY.md`). meetsync does not calculate who owes what, does not integrate a payment provider, and does not track settlement.
 
 ## Why
 

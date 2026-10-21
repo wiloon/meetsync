@@ -6,4 +6,4 @@ The Phase 1 spec lives in the issue tracker, per `docs/agents/issue-tracker.md`:
 
 That issue is the single source of truth. This file is only a pointer.
 
-Related: [`CONTEXT.md`](../CONTEXT.md) (glossary), [`docs/adr/`](adr/) (decisions 0001–0008).
+Related: [`GLOSSARY.md`](../GLOSSARY.md) (glossary), [`docs/adr/`](adr/) (decisions 0001–0008).

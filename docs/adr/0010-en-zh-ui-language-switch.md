@@ -8,7 +8,7 @@ Retrofitting translation keys into a UI that was built with hardcoded strings me
 
 ## Consequences
 
-- Developer-facing artifacts are unaffected: code comments, identifiers, commit messages, `CONTEXT.md`, and ADRs stay English-only, per `CLAUDE.md`. Only end-user UI copy is bilingual.
+- Developer-facing artifacts are unaffected: code comments, identifiers, commit messages, `GLOSSARY.md`, and ADRs stay English-only, per `CLAUDE.md`. Only end-user UI copy is bilingual.
 - User-generated content (a Gathering's title, a Topic's name or Location) is never translated or transliterated — whatever language a Participant typed it in is what everyone sees.
 - `to-tickets` should treat "every new string is a translation key, not a literal" as a standing acceptance criterion across all UI tickets, not a separate ticket of its own.
 - Layout has to tolerate Chinese strings running much shorter than their English source (validated in the `prototype/language-switch-ui` prototype) — fixed-width buttons sized for English text can look sparse in Chinese, but the reverse failure (Chinese text overflowing a box sized for it) is the one to actually test for.
